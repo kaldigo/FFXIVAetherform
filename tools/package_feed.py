@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="New left-facing waist-up silhouette for the installer and window header. Includes persistent, Proteus-editable garment fits.")
+                Changelog="Vanilla tops and bottoms now use a UV-grid wrap to the selected Aetherform shapes. New editable UV Wrap fits are cached separately from earlier fits.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

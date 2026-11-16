@@ -73,6 +73,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     ushort race = test.TryGetProperty("race", out var id) ? id.GetUInt16() : (ushort)201;
     byte[]? FileBytes(string property) => test.TryGetProperty(property, out var path) ? File.ReadAllBytes(path.GetString()!) : null;
     var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),log])!;
+    if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");
     var hash = Convert.ToHexString(SHA256.HashData(result));
     string name = test.GetProperty("model").GetString()!;
