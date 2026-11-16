@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Vanilla tops and bottoms now use a baked AF body map. Garment bindings persist across shape changes and restarts. Earlier editable fits remain available.")
+                Changelog="Cloth Detail applies one subdivision pass to flexible vanilla panels, smooths refit displacement, and checks the final cloth against drawn skin. Includes baked bindings and editable fits.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

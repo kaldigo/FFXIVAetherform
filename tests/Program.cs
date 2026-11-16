@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Numerics;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Security.Cryptography;
@@ -36,6 +37,18 @@ if (editCheck)
     var map = solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.VanillaAfWrap",true)!;
     int corners = (int)map.GetProperty("CornerCount",BindingFlags.NonPublic|BindingFlags.Static)!.GetValue(null)!;
     if (corners != 3*(14030+10260)) throw new Exception("Shipped reference topology changed.");
+    var smooth = solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.PanelGeometry",true)!
+        .GetMethod("Smooth",BindingFlags.NonPublic|BindingFlags.Static)!;
+    Vector3[] panel = [new(-1,0,0),new(1,0,0),new(1,2,0),new(-1,2,0),new(0,1,0)];
+    int[] triangles = [0,1,4,1,2,4,2,3,4,3,0,4];
+    var flat = panel.Select(p => p+Vector3.UnitZ).ToArray();
+    smooth.Invoke(null,[panel,flat,triangles]);
+    if (!flat.SequenceEqual(panel.Select(p=>p+Vector3.UnitZ))) throw new Exception("Smoothing changed a translated panel.");
+    var spike = (Vector3[])panel.Clone();
+    spike[4].Z=.02f;
+    smooth.Invoke(null,[panel,spike,triangles]);
+    if(spike[4].Z>=.01f || !spike.Take(4).SequenceEqual(panel.Take(4)))
+        throw new Exception("Smoothing failed to relax the interior displacement or moved a straight boundary.");
     var save = solver.DeclaringType!.GetMethod("SaveEditable")!;
     var folder = Directory.CreateDirectory(Path.Combine(lib,"test-output",Guid.NewGuid().ToString("N"))).FullName;
     try

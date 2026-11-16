@@ -225,7 +225,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot is "_top" or "_dwn" ? "baked-wrap-v1|" : "") + request.Shape + item.Path);
+            var key = Hash((item.Slot is "_top" or "_dwn" ? "panel-subdivision-v1|" : "") + request.Shape + item.Path);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
@@ -299,7 +299,7 @@ internal sealed class EquipRefits : IDisposable
                 if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
                     throw new IOException("The refit directory belongs to another mod: " + dir);
             string option = snapshot.Preset.Replace(" / ", " + ") + " [" + snapshot.Shape[..12] + "]";
-            if (item.Slot is "_top" or "_dwn") option += " Baked Wrap";
+            if (item.Slot is "_top" or "_dwn") option += " Cloth Detail";
             string bodyFolder = Path.Combine(snapshot.Root,snapshot.BodyDirectory);
             var targets = Required(item.Slot).Where(snapshot.Targets.ContainsKey)
                 .ToDictionary(k => k,k => Path.GetRelativePath(bodyFolder,snapshot.Targets[k]));

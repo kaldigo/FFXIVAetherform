@@ -56,7 +56,10 @@ public static class GarmentFit
         if (slot is "_top" or "_dwn")
         {
             var bindings = new GarmentBindings(bindingDirectory,slot,garment);
-            WrapGarment.Apply(garment,result,VanillaAfWrap.Get(bodies),bindings,slot);
+            var cleared = (byte[])result.Clone();
+            var map = VanillaAfWrap.Get(bodies);
+            WrapGarment.Apply(garment,result,map,bindings,slot);
+            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot);
             bindings.Save();
         }
         if (wearer != null && !sharedMale)
