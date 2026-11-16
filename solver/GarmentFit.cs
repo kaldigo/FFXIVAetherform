@@ -58,6 +58,23 @@ public static class GarmentFit
 
     public static object? ModelAvailability(string path) => RacialModelBake.Switch(path, 201);
 
+    public static Func<int,int,string?> ItemLookup(IDataManager data, IPluginLog log) => ItemNames.Lookup(data, log);
+
+    // Save once per option. A later equip must never replace a model modified in Studio.
+    public static bool SaveEditable(string folder, string output, string source, string slot, string body,
+        string option, string shape, Dictionary<string,string> targets, string model)
+    {
+        var record = BodyRetargetWriter.ReadRecord(folder);
+        var existing = record?.Options.FirstOrDefault(e => e.Group == "Fit" && e.Name == option && e.GamePath == output);
+        if (existing != null && File.Exists(Path.Combine(folder,existing.File))) return false;
+        object? eqdp = output == source ? null : ModelAvailability(output);
+        var result = BodyRetargetWriter.Save(folder, "Fit", output, body, "Vanilla body",
+            [new(option, File.ReadAllBytes(model), shape)], manipulations: eqdp == null ? null : [eqdp],
+            auto: true, fromGame: true, provenance: new("::vanilla", "c0201e0000" + slot + ".mdl", targets));
+        if (!result.Ok) throw new IOException(result.Message);
+        return true;
+    }
+
     private static void ApplyLegShapes(byte[] body, string[] options)
     {
         bool hip = options.Contains("Hip Dips"), soft = options.Contains("Soft Butt");

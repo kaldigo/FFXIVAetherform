@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Fits vanilla gear on equip using the collection body shapes and long-coat solver. Handmade refits and manual overrides take priority. New waist-up Aetherform mark.")
+                Changelog="Each garment now has a Proteus-editable Fit group, body retarget record and persistent per-shape model. Re-equipping preserves manual edits.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

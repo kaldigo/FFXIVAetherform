@@ -34,16 +34,19 @@ internal sealed class EquipRefits : IDisposable
     private readonly HashSet<string> failures = [];
     private sealed record Item(string Path, string Output, string Slot, ushort Race);
     private sealed record Snapshot(Guid Collection, string Root, string Shape, Dictionary<string,string> Targets,
-        string[] LegOptions, Item[] Items, string Key);
+        string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key);
     private sealed record Fit(Item Item, string Model);
     private sealed record Batch(Snapshot Inputs, List<Fit> Fits, List<(string Item, string Reason)> Errors);
     private Task<Batch>? job;
     private CancellationTokenSource? jobStop;
     private string? jobKey;
     private readonly CancellationTokenSource stop = new();
-    private (Guid Collection, string Directory)? worn;
+    private Guid? worn;
+    private readonly HashSet<string> activeMods = new(StringComparer.OrdinalIgnoreCase);
+    private Func<int,int,string?>? names;
     private Dictionary<string,Item> installed = [];
     private string committed = "";
+    private readonly HashSet<Guid> migrated = [];
     public string Status { get; private set; } = "";
 
     public EquipRefits(IDalamudPluginInterface pi, IDataManager data, IObjectTable objects, IPluginLog log, string config)
@@ -83,7 +86,7 @@ internal sealed class EquipRefits : IDisposable
         var current = Capture(root, body, disabled, out bool drawing);
         if (drawing) return;
         if (job != null && jobKey != current?.Key) jobStop?.Cancel();
-        if (worn is { } previous && current?.Collection != previous.Collection) Deactivate();
+        if (worn is { } previous && current?.Collection != previous) Deactivate();
         if (job is { IsCompleted: true })
         {
             try
@@ -128,10 +131,12 @@ internal sealed class EquipRefits : IDisposable
         if (code != 0 || setting is not { Item1: true } effective) return null;
         ReadChoices(Path.Combine(root,body));
         var targets = new Dictionary<string,string>();
+        var labels = new List<string>();
         foreach (var (slot, group) in Groups)
         {
             var selected = effective.Item3.GetValueOrDefault(group)?.FirstOrDefault() ?? defaults[slot];
             if (choices[slot].TryGetValue(selected, out var path)) targets[slot] = path;
+            if (slot is "_top" or "_dwn") labels.Add(selected);
         }
         bool Supplied(string slot) => VanillaToAetherform.Supplies(slot, wearerRace, targets, path => Resolved(id,path));
         if (!Supplied("_top") || !Supplied("_dwn")) return null;
@@ -147,6 +152,16 @@ internal sealed class EquipRefits : IDisposable
             drawing = true;
             return null;
         }
+        string legacy = Path.Combine(root,"Vanilla to Aetherform " + id.ToString("N")) + Path.DirectorySeparatorChar;
+        if (!migrated.Contains(id) && tree.Any(row => Path.IsPathFullyQualified(row.Key) &&
+            Path.GetFullPath(row.Key).StartsWith(legacy,StringComparison.OrdinalIgnoreCase) &&
+            row.Value.Any(path => Equipment.IsMatch(path) && Vanilla(id,path))))
+        {
+            migrated.Add(id);
+            pi.GetIpcSubscriber<int,int,object>("Penumbra.RedrawObject.V5").InvokeAction(0,0);
+            drawing = true;
+            return null;
+        }
         var pieces = new Dictionary<string,Item>();
         foreach (var (actual, paths) in tree)
         foreach (var path in paths)
@@ -155,7 +170,7 @@ internal sealed class EquipRefits : IDisposable
             if (!m.Success || m.Groups["set"].Value is "0000" or "9903") continue;
             var slot = m.Groups["slot"].Value;
             if (!targets.ContainsKey(slot)) continue;
-            if (worn?.Collection == id && installed.TryGetValue(path, out var old) &&
+            if (worn == id && installed.TryGetValue(path, out var old) &&
                 (OurFile(root, actual) || (actual.Equals(path, StringComparison.OrdinalIgnoreCase) && OurFile(root, Resolved(id,path)))))
             {
                 if (old.Path != path && !Vanilla(id, old.Path)) continue;
@@ -163,7 +178,7 @@ internal sealed class EquipRefits : IDisposable
                 continue;
             }
             // A newly registered female model may still be awaiting its first redraw from the shared male path.
-            if (worn?.Collection == id && actual.Equals(path, StringComparison.OrdinalIgnoreCase))
+            if (worn == id && actual.Equals(path, StringComparison.OrdinalIgnoreCase))
             {
                 var shared = installed.Values.FirstOrDefault(i => i.Path == path && i.Output != path);
                 if (shared != null && Vanilla(id,path) && OurFile(root,Resolved(id,shared.Output)))
@@ -181,11 +196,11 @@ internal sealed class EquipRefits : IDisposable
         }
         var items = pieces.Values.OrderBy(x => x.Path).ToArray();
         var key = Hash(id + "|" + root + "|" + shape + "|" + string.Join('|',items.Select(i => i.Path)));
-        return new(id, root, shape, targets, legs, items, key);
+        return new(id, root, shape, targets, legs, body, string.Join(" / ",labels.Concat(legs)), items, key);
     }
 
-    private bool OurFile(string root, string path) => worn is { } w && Path.IsPathFullyQualified(path) &&
-        Path.GetFullPath(path).StartsWith(Path.Combine(root, w.Directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    private bool OurFile(string root, string path) => worn.HasValue && Path.IsPathFullyQualified(path) && activeMods.Any(dir =>
+        Path.GetFullPath(path).StartsWith(Path.Combine(root, dir) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
     private bool Vanilla(Guid id, string path) => string.Equals(Resolved(id,path),path,StringComparison.OrdinalIgnoreCase);
 
@@ -203,6 +218,7 @@ internal sealed class EquipRefits : IDisposable
 
     private Batch Generate(Snapshot request, CancellationToken token)
     {
+        names ??= GarmentFit.ItemLookup(data,log);
         var fits = new List<Fit>();
         var errors = new List<(string,string)>();
         Directory.CreateDirectory(cache);
@@ -260,45 +276,54 @@ internal sealed class EquipRefits : IDisposable
             Status = batch.Errors.FirstOrDefault().Reason ?? "No matching garments.";
             return;
         }
-        string dir = "Vanilla to Aetherform " + snapshot.Collection.ToString("N");
-        string folder = Path.Combine(snapshot.Root, dir);
-        string name = "Aetherform - Vanilla refits (" + snapshot.Collection.ToString("N")[..8] + ")";
-        string meta = Path.Combine(folder, "meta.json");
-        var identity = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(dir)).AsSpan(0,16));
-        if (Directory.Exists(folder))
-        {
-            using var prior = JsonDocument.Parse(File.ReadAllBytes(meta));
-            if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
-                throw new IOException("The generated refit folder belongs to another mod.");
-        }
-        Directory.CreateDirectory(Path.Combine(folder, "models"));
-        var files = new Dictionary<string,string>();
-        var manips = new List<object>();
+        var mods = pi.GetIpcSubscriber<Dictionary<string,string>>("Penumbra.GetModList").InvokeFunc();
+        var desired = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var fit in batch.Fits)
         {
-            string relative = Path.Combine("models", Path.GetFileName(fit.Model));
-            var target = Path.Combine(folder,relative);
-            if (!File.Exists(target)) Write(target,File.ReadAllBytes(fit.Model));
-            files.Add(fit.Item.Output, relative);
-            if (fit.Item.Output != fit.Item.Path && GarmentFit.ModelAvailability(fit.Item.Output) is { } eqdp)
-                manips.Add(eqdp);
+            var item = fit.Item;
+            var stem = Path.GetFileNameWithoutExtension(item.Path);
+            string dir = "AF Vanilla Fit " + stem;
+            string folder = Path.Combine(snapshot.Root,dir);
+            int category = item.Slot switch { "_top" => 4, "_glv" => 5, "_dwn" => 7, "_sho" => 8, _ => 0 };
+            var label = names?.Invoke(category,int.Parse(Equipment.Match(item.Path).Groups["set"].Value)) ?? stem;
+            string name = label + " — Aetherform";
+            var identity = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(dir)).AsSpan(0,16));
+            string meta = Path.Combine(folder,"meta.json");
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+                Write(meta, JsonSerializer.SerializeToUtf8Bytes(new { FileVersion = 4, Identifier = identity,
+                    Name = name, Author = "Aetherform", Version = "1", Description = "Editable vanilla refit for " + stem }));
+            }
+            using (var prior = JsonDocument.Parse(File.ReadAllBytes(meta)))
+                if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
+                    throw new IOException("The refit directory belongs to another mod: " + dir);
+            string option = snapshot.Preset.Replace(" / ", " + ") + " [" + snapshot.Shape[..12] + "]";
+            string bodyFolder = Path.Combine(snapshot.Root,snapshot.BodyDirectory);
+            var targets = Required(item.Slot).Where(snapshot.Targets.ContainsKey)
+                .ToDictionary(k => k,k => Path.GetRelativePath(bodyFolder,snapshot.Targets[k]));
+            // If the user edited a previously published 0.4.0.1 model, migrate those bytes.
+            string legacy = Path.Combine(snapshot.Root,"Vanilla to Aetherform " + snapshot.Collection.ToString("N"),
+                "models",Path.GetFileName(fit.Model));
+            bool added = GarmentFit.SaveEditable(folder,item.Output,item.Path,item.Slot,snapshot.BodyDirectory,
+                option,snapshot.Preset,targets,File.Exists(legacy) ? legacy : fit.Model);
+            if (!mods.ContainsKey(dir))
+            {
+                Ok(pi.GetIpcSubscriber<string,int>("Penumbra.AddMod.V5").InvokeFunc(dir));
+                Ok(pi.GetIpcSubscriber<string,string,string,int>("Penumbra.SetModPath.V5")
+                    .InvokeFunc(dir,"",VanillaToAetherform.Folder + "/" + name + " (" + stem + ")"));
+            }
+            else if (added)
+                Ok(pi.GetIpcSubscriber<string,string,int>("Penumbra.ReloadMod.V5").InvokeFunc(dir,""));
+            IReadOnlyDictionary<string,IReadOnlyList<string>> options =
+                new Dictionary<string,IReadOnlyList<string>> { ["Fit"] = new[] { option } };
+            Ok(pi.GetIpcSubscriber<Guid,string,string,(bool,bool,int,IReadOnlyDictionary<string,IReadOnlyList<string>>),string,int,int>(
+                "Penumbra.SetTemporaryModSettings.V5").InvokeFunc(snapshot.Collection,dir,"",(false,true,Priority,options),Source,SettingsKey));
+            activeMods.Add(dir);
+            desired.Add(dir);
+            worn = snapshot.Collection;
         }
-        Write(meta, JsonSerializer.SerializeToUtf8Bytes(new { FileVersion = 4, Identifier = identity,
-            Name = name, Author = "Aetherform", Version = "1", LastWrite = DateTime.UtcNow,
-            Description = "Generated vanilla fits. Save manual corrections as separate higher-priority mods.",
-            DefaultData = new { Files = files, Manipulations = manips }, Groups = Array.Empty<object>() }));
-        var mods = pi.GetIpcSubscriber<Dictionary<string,string>>("Penumbra.GetModList").InvokeFunc();
-        if (mods.ContainsKey(dir))
-            Ok(pi.GetIpcSubscriber<string,string,int>("Penumbra.ReloadMod.V5").InvokeFunc(dir,""));
-        else
-        {
-            Ok(pi.GetIpcSubscriber<string,int>("Penumbra.AddMod.V5").InvokeFunc(dir));
-            Ok(pi.GetIpcSubscriber<string,string,string,int>("Penumbra.SetModPath.V5").InvokeFunc(dir,"",VanillaToAetherform.Folder + "/" + name));
-        }
-        var options = (IReadOnlyDictionary<string,IReadOnlyList<string>>)new Dictionary<string,IReadOnlyList<string>>();
-        Ok(pi.GetIpcSubscriber<Guid,string,string,(bool,bool,int,IReadOnlyDictionary<string,IReadOnlyList<string>>),string,int,int>(
-            "Penumbra.SetTemporaryModSettings.V5").InvokeFunc(snapshot.Collection,dir,"",(false,true,Priority,options),Source,SettingsKey));
-        worn = (snapshot.Collection,dir);
+        foreach (var dir in activeMods.Except(desired).ToArray()) Release(snapshot.Collection,dir);
         installed = batch.Fits.ToDictionary(f => f.Item.Output,f => f.Item);
         committed = snapshot.Key;
         Status = $"Equipped vanilla fits: {installed.Count}." + (batch.Errors.Count > 0 ? $" Skipped: {batch.Errors.Count}. See Dalamud log." : "");
@@ -312,20 +337,25 @@ internal sealed class EquipRefits : IDisposable
 
     private void Deactivate()
     {
-        if (worn is { } previous)
+        if (worn is Guid collection)
         {
-            var remove = pi.GetIpcSubscriber<Guid,string,string,int,int>("Penumbra.RemoveTemporaryModSettings.V5");
-            if (remove.HasFunction)
-            {
-                int code = remove.InvokeFunc(previous.Collection, previous.Directory, "", SettingsKey);
-                if (code is not (0 or 1 or 2 or 3)) Ok(code);
-                if (code == 0 && objects.LocalPlayer != null && !stop.IsCancellationRequested)
-                    pi.GetIpcSubscriber<int,int,object>("Penumbra.RedrawObject.V5").InvokeAction(0,0);
-            }
+            foreach (var dir in activeMods.ToArray()) Release(collection,dir);
+            if (objects.LocalPlayer != null && !stop.IsCancellationRequested)
+                pi.GetIpcSubscriber<int,int,object>("Penumbra.RedrawObject.V5").InvokeAction(0,0);
         }
         Reset();
     }
-    public void Reset() { worn = null; committed = ""; installed.Clear(); }
+    private void Release(Guid collection, string dir)
+    {
+        var remove = pi.GetIpcSubscriber<Guid,string,string,int,int>("Penumbra.RemoveTemporaryModSettings.V5");
+        if (remove.HasFunction)
+        {
+            int code = remove.InvokeFunc(collection,dir,"",SettingsKey);
+            if (code is not (0 or 1 or 2 or 3)) Ok(code);
+        }
+        activeMods.Remove(dir);
+    }
+    public void Reset() { worn = null; activeMods.Clear(); committed = ""; installed.Clear(); }
     public void Dispose()
     {
         stop.Cancel();

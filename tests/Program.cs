@@ -16,8 +16,9 @@ foreach (string part in selected.Keys)
 }
 Console.WriteLine("Effective body checks passed (AF, other shared body, other racial body, and vanilla).");
 if (args.Length == 0) return;
-var config = JsonDocument.Parse(File.ReadAllBytes(args[0])).RootElement;
-var lib = config.GetProperty("library").GetString()!;
+bool editCheck = args[0] == "--editable";
+var config = editCheck ? default : JsonDocument.Parse(File.ReadAllBytes(args[0])).RootElement;
+var lib = editCheck ? Path.GetFullPath(args[1]) : config.GetProperty("library").GetString()!;
 var dalamud = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher/addon/Hooks/dev");
 AssemblyLoadContext.Default.Resolving += (_, name) =>
 {
@@ -29,6 +30,37 @@ AssemblyLoadContext.Default.Resolving += (_, name) =>
     return null;
 };
 var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("Aetherform.Geometry.GarmentFit")!.GetMethod("Generate")!;
+if (editCheck)
+{
+
+    var save = solver.DeclaringType!.GetMethod("SaveEditable")!;
+    var folder = Directory.CreateDirectory(Path.Combine(lib,"test-output",Guid.NewGuid().ToString("N"))).FullName;
+    try
+    {
+        const string path = "chara/equipment/e0170/model/c0201e0170_dwn.mdl";
+        var input = Path.Combine(folder,"generated.mdl");
+        File.WriteAllBytes(input,[1,2,3]);
+        File.WriteAllText(Path.Combine(folder,"meta.json"),JsonSerializer.Serialize(new { FileVersion = 4, Identifier = Guid.NewGuid(), Name = "Fixture" }));
+        bool Save(string option) => (bool)save.Invoke(null,[folder,path,path,"_dwn","Aetherform",option,option,
+            new Dictionary<string,string> { ["_dwn"] = "large.mdl" },input])!;
+        string Sidecar() => File.ReadAllText(Path.Combine(folder,"Proteus","bodyretarget.json"));
+        if (!Save("Medium")) throw new Exception("Fit not created.");
+        using var record = JsonDocument.Parse(Sidecar());
+        var entry = record.RootElement.GetProperty("Options")[0];
+        var edited = Path.Combine(folder,entry.GetProperty("File").GetString()!);
+        File.WriteAllBytes(edited,[7,8,9]);
+        if (Save("Medium") || !Save("Large") || Save("Medium") || !File.ReadAllBytes(edited).SequenceEqual(new byte[]{7,8,9}))
+            throw new Exception("Re-equipping or adding a shape overwrote a correction.");
+        using var meta = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(folder,"meta.json")));
+        var options = meta.RootElement.GetProperty("Groups")[0].GetProperty("Options");
+        if (options.GetArrayLength()!=3 || !entry.GetProperty("FromGame").GetBoolean() ||
+            entry.GetProperty("Targets").GetProperty("_dwn").GetString() != "large.mdl")
+            throw new Exception("Missing native fit options or provenance.");
+        Console.WriteLine("Native Fit options, source record and edit persistence passed.");
+    }
+    finally { Directory.Delete(folder,true); }
+    return;
+}
 var log = DispatchProxy.Create(solver.GetParameters()[^1].ParameterType, typeof(QuietLog));
 var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())

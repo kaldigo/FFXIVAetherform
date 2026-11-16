@@ -40,7 +40,7 @@ runs:
       run: |
         dotnet build src/Aetherform.csproj -c Release -p:Version=$env:RELEASE_VERSION
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
-        dotnet run --project tests/GeometryCheck.csproj -c Release
+        dotnet run --project tests/GeometryCheck.csproj -c Release -- --editable src/bin/Release/net10.0-windows
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         $actual=[Reflection.AssemblyName]::GetAssemblyName((Resolve-Path src/bin/Release/net10.0-windows/Aetherform.dll)).Version
         if ($actual.ToString() -ne $env:RELEASE_VERSION) { throw "Incorrect assembly version: $actual" }
