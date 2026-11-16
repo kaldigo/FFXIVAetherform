@@ -7,6 +7,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from prepare import references
+from solver_package import add_solver
 
 
 def package(project, output):
@@ -38,6 +39,7 @@ def package(project, output):
     binaries = project / "src/bin/Release/net10.0-windows"
     output.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(output, "w", ZIP_DEFLATED, compresslevel=1) as archive:
+        add_solver(archive, project, binaries)
         for name in ("Aetherform.dll", "AetherglassUI.dll", "Aetherform.json", "Aetherform.deps.json"):
             archive.write(binaries / name, name)
         for name in ("Aetherform.pmp", "physics.zip"):

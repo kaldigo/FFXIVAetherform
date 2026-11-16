@@ -1,4 +1,5 @@
 """Build the plugin-only Dalamud release. Body data stays in pluginConfigs."""
+from solver_package import add_solver
 import hashlib
 import json
 import sys
@@ -16,9 +17,10 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="New Aetherform family icon, matching window header mark, and pictograms for Body installer and Physics preset builder.")
+                Changelog="Fits vanilla gear on equip using the collection body shapes and long-coat solver. Handmade refits and manual overrides take priority. New waist-up Aetherform mark.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
+    add_solver(archive, root, build)
     archive.writestr("Aetherform.json", json.dumps(manifest))
     archive.write(root / "assets/icon.png", "images/icon.png")
     for name in ("Aetherform.dll", "Aetherform.deps.json", "AetherglassUI.dll"):

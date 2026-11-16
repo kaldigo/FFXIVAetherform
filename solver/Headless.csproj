@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- The pinned geometry library exposes its headless API to this assembly. -->
+    <AssemblyName>Proteus.Refit</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DalamudDir Condition="'$(DalamudDir)' == ''">$(AppData)/XIVLauncher/addon/Hooks/dev</DalamudDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Proteus" HintPath="../out/solver/lib/Proteus.dll" />
+    <Reference Include="XivLiveMesh" HintPath="../out/solver/lib/XivLiveMesh.dll" />
+    <Reference Include="Dalamud" HintPath="$(DalamudDir)/Dalamud.dll" Private="false"/>
+  </ItemGroup>
+</Project>

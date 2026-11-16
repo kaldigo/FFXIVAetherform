@@ -17,12 +17,19 @@ Extract the entire plugin ZIP to a dedicated folder. In Dalamud settings, open *
 
 The body ships with its own default physics. Custom presets resolve to one complete physics file per supported race at one priority above the body. The plugin extracts the selected precomputed files locally and reuses them. The catalog comes from the Aetherform physics bank with its reduced ear bounce and V1 tail. Binaries and body assets are staged separately from this public source repository.
 
+## Vanilla refits on equip
+
+When Aetherform supplies both the selected chest and legs in your character’s effective collection, the plugin fits vanilla tops, bottoms, gloves and shoes as you wear them. The switch on **Body installer** is per collection and starts enabled. The target models come from the **Smallclothes** options, including the leg modifiers. Long coats use the panel-aware envelope method. Gloves and shoes keep their hand and foot shapes.
+
+Generated models appear under **Aetherform → Refits → Vanilla to Aetherform** in Penumbra. The generated mod is enabled temporarily for the active collection at the lowest signed priority. Handmade model replacements win. Save upstream Proteus corrections as separate mods above the handmade fits. The local cache is separated by source and target under **refits/Vanilla/Aetherform**. Generated files are cached for reuse with the same shape and game version. The plugin watches the local player and leaves unsupported races, model layouts, and redirected equipment alone.
+
 ## Build
 
 Requires Windows, .NET 10, Python 3, and the Dalamud API 15 development assemblies. Clone [AetherglassUI](https://github.com/kaldigo/FFXIV-AetherglassUI) into a sibling directory named AetherglassUI and check out revision f3960c317f9c35e7ddba82310aad2e7e240b92d1.
 
 From this repository, run:
 
+    ./tools/fetch-solver.ps1
     dotnet build src/Aetherform.csproj -c Release
     python tools/prepare.py "path/to/Aetherform v0.1.6.pmp" "path/to/Aetherform Physics v0.2.0.zip" payload
     python tools/package.py out/Aetherform.zip

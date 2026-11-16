@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-    <Version>0.3.0</Version><AssemblyName>Aetherform</AssemblyName>
+    <Version>0.4.0</Version><AssemblyName>Aetherform</AssemblyName>
     <DalamudDir Condition="'$(DalamudDir)' == ''">$(AppData)/XIVLauncher/addon/Hooks/dev</DalamudDir>
   </PropertyGroup>
   <PropertyGroup>
@@ -9,6 +9,7 @@
     <AetherglassSource Condition="'$(AetherglassSource)' == ''">../../AetherglassUI</AetherglassSource>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../solver/Headless.csproj" />
     <Reference Include="Dalamud" HintPath="$(DalamudDir)/Dalamud.dll" Private="false"/>
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudDir)/Dalamud.Bindings.ImGui.dll" Private="false"/>
     <ProjectReference Include="$(AetherglassSource)/Library/AetherglassUI.csproj" />

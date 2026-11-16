@@ -36,7 +36,7 @@ public sealed partial class Plugin
         var texture = textures.GetFromManifestResource(typeof(Plugin).Assembly, "Aetherform.mark.png").GetWrapOrDefault();
         if (texture != null)
             ImGui.GetWindowDrawList().AddImage(texture.Handle, position, position + new Vector2(size),
-                new Vector2(.16f), new Vector2(.84f));
+                new Vector2(.10f), new Vector2(.90f));
     }
 
     private static void DrawBodyIcon(Vector2 position, float size, uint color)
@@ -90,6 +90,16 @@ public sealed partial class Plugin
     private void DrawBody()
     {
         if (!Collection()) return;
+        Controls.Row("refit", "Refit vanilla gear on equip", "Uses the chest and legs selected under Smallclothes in this collection.", () =>
+        {
+            bool enabled = !profiles.RefitDisabled.Contains(selected);
+            if (Controls.Switch("enabled", enabled) == enabled) return;
+            if (enabled) profiles.RefitDisabled.Add(selected);
+            else profiles.RefitDisabled.Remove(selected);
+            Save();
+            nextPoll = 0;
+        });
+        if (fits.Status.Length > 0) ImGui.TextWrapped(fits.Status);
         ImGui.TextWrapped("Install the body in Penumbra and enable it in the selected collection. Choose your body shape, hands, feet and hair in the mod’s Penumbra settings.");
         ImGui.BeginDisabled(installing != null);
         try

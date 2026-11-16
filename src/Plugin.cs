@@ -8,6 +8,7 @@ namespace Aetherform;
 internal sealed class Profiles
 {
     public Dictionary<Guid, int[]> Applied { get; set; } = [];
+    public HashSet<Guid> RefitDisabled { get; set; } = [];
     public Dictionary<string, int[]> Named { get; set; } = [];
 }
 
@@ -19,6 +20,7 @@ public sealed partial class Plugin : IDalamudPlugin
     private readonly ICommandManager commands;
     private readonly IPluginLog log;
     private readonly ITextureProvider textures;
+    private readonly EquipRefits fits;
     private readonly string settings;
     private PhysicsBank? bank;
     private readonly string payloadDirectory, cacheDirectory;
@@ -33,7 +35,7 @@ public sealed partial class Plugin : IDalamudPlugin
     private string status = "";
     private int[] draft;
 
-    public Plugin(IDalamudPluginInterface pi, IFramework framework, ICommandManager commands, IPluginLog log, ITextureProvider textures)
+    public Plugin(IDalamudPluginInterface pi, IFramework framework, ICommandManager commands, IPluginLog log, ITextureProvider textures, IDataManager data, IObjectTable objects)
     {
         this.pi = pi;
         this.framework = framework;
@@ -48,6 +50,7 @@ public sealed partial class Plugin : IDalamudPlugin
         profiles = File.Exists(settings) ? JsonSerializer.Deserialize<Profiles>(File.ReadAllText(settings))! : new();
         payloadDirectory = File.Exists(Path.Combine(folder, "physics.zip")) ? folder : Path.Combine(config, "payload");
         cacheDirectory = Path.Combine(config, "physics");
+        fits = new(pi, data, objects, log, config);
         draft = [];
         shell.Close = () => visible = false;
         commands.AddHandler("/aetherform", new CommandInfo((_, _) => Open()) { HelpMessage = "Open the Aetherform installer and physics builder." });
@@ -59,7 +62,7 @@ public sealed partial class Plugin : IDalamudPlugin
     }
 
     private void Open() { visible = true; nextPoll = 0; }
-    private void Reset() { active.Clear(); nextPoll = 0; }
+    private void Reset() { active.Clear(); fits.Reset(); nextPoll = 0; }
     private void Save()
     {
         File.WriteAllText(settings + ".tmp", JsonSerializer.Serialize(profiles));
@@ -72,7 +75,7 @@ public sealed partial class Plugin : IDalamudPlugin
     }
     private void Tick(IFramework _)
     {
-        if (!visible && installing == null && profiles.Applied.Count == 0) return;
+
         if (Environment.TickCount64 < nextPoll) return;
         nextPoll = Environment.TickCount64 + 2000;
         try
@@ -85,7 +88,7 @@ public sealed partial class Plugin : IDalamudPlugin
                 Select(selected);
             }
             var mods = pi.GetIpcSubscriber<Dictionary<string, string>>("Penumbra.GetModList");
-            if (!mods.HasFunction) { collections.Clear(); active.Clear(); body = null; return; }
+            if (!mods.HasFunction) { collections.Clear(); active.Clear(); fits.Reset(); body = null; return; }
             collections = pi.GetIpcSubscriber<Dictionary<Guid, string>>("Penumbra.GetCollections.V5").InvokeFunc();
             if (!collections.ContainsKey(selected))
             {
@@ -100,6 +103,7 @@ public sealed partial class Plugin : IDalamudPlugin
                 if (body != null) { installing = null; Enable(target); }
                 else if (Environment.TickCount64 > deadline) { installing = null; status = "Import timed out. Check the import in Penumbra."; }
             }
+            fits.Update(root, body, profiles.RefitDisabled);
             foreach (var id in active.Keys.Except(collections.Keys).ToArray()) active.Remove(id);
             foreach (var id in profiles.Applied.Keys.Where(collections.ContainsKey)) Sync(id);
         }
@@ -192,6 +196,7 @@ public sealed partial class Plugin : IDalamudPlugin
         commands.RemoveHandler("/aetherform");
         foreach (var id in active.Keys.ToArray())
             try { Remove(id); } catch (Exception ex) { Report(ex); }
+        fits.Dispose();
         bank?.Dispose();
     }
 }
