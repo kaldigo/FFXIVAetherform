@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <Version>0.3.0</Version><AssemblyName>Aetherform</AssemblyName>
+    <DalamudDir Condition="'$(DalamudDir)' == ''">$(AppData)/XIVLauncher/addon/Hooks/dev</DalamudDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud" HintPath="$(DalamudDir)/Dalamud.dll" Private="false"/>
+    <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudDir)/Dalamud.Bindings.ImGui.dll" Private="false"/>
+    <ProjectReference Include="../../AetherglassUI/Library/AetherglassUI.csproj" />
+    <Reference Include="HexaGen.Runtime" HintPath="$(DalamudDir)/HexaGen.Runtime.dll" Private="false"/>
+    <None Update="Aetherform.json" CopyToOutputDirectory="PreserveNewest" />
+    <Reference Include="Lumina" HintPath="$(DalamudDir)/Lumina.dll" Private="false"/>
+  </ItemGroup>
+</Project>

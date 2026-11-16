@@ -1,0 +1,7 @@
+bin/
+obj/
+out/
+payload/
+*.pmp
+*.zip
+__pycache__/
