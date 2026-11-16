@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Aetherform dress form</title>
+  <defs>
+    <linearGradient id="silk"><stop stop-color="#00efbb"/><stop offset=".28" stop-color="#00e5d8"/><stop offset=".5" stop-color="#8887ff"/><stop offset=".73" stop-color="#d533ff"/><stop offset="1" stop-color="#f000ef"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#silk)"/>
+  <rect x="10" y="10" width="492" height="492" rx="11" fill="#100f10"/>
+  <path fill="url(#silk)" fill-rule="evenodd" d="M230 91 H282 Q282 117 301 125 L347 144 Q354 147 352 156 C344 191 321 211 315 235 C307 266 349 293 355 344 Q315 364 266 366 V390 H304 Q316 390 316 403 V416 H196 V403 Q196 390 208 390 H246 V366 Q197 364 157 344 C163 293 205 266 197 235 C191 211 168 191 160 156 Q158 147 165 144 L211 125 Q230 117 230 91 Z M182 318 C210 289 267 268 302 219 C284 270 238 303 177 336 Z"/>
+</svg>

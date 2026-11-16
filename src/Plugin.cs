@@ -18,6 +18,7 @@ public sealed partial class Plugin : IDalamudPlugin
     private readonly IFramework framework;
     private readonly ICommandManager commands;
     private readonly IPluginLog log;
+    private readonly ITextureProvider textures;
     private readonly string settings;
     private PhysicsBank? bank;
     private readonly string payloadDirectory, cacheDirectory;
@@ -32,12 +33,13 @@ public sealed partial class Plugin : IDalamudPlugin
     private string status = "";
     private int[] draft;
 
-    public Plugin(IDalamudPluginInterface pi, IFramework framework, ICommandManager commands, IPluginLog log)
+    public Plugin(IDalamudPluginInterface pi, IFramework framework, ICommandManager commands, IPluginLog log, ITextureProvider textures)
     {
         this.pi = pi;
         this.framework = framework;
         this.commands = commands;
         this.log = log;
+        this.textures = textures;
         var folder = pi.AssemblyLocation.DirectoryName!;
         
         var config = pi.GetPluginConfigDirectory();

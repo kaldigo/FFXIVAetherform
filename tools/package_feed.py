@@ -16,7 +16,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Install through the shared repository. Body data is read from the local Aetherform payload folder.")
+                Changelog="New Aetherform family icon, matching window header mark, and pictograms for Body installer and Physics preset builder.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     archive.writestr("Aetherform.json", json.dumps(manifest))

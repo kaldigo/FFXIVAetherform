@@ -21,14 +21,42 @@ public sealed partial class Plugin
             try
             {
                 if (open) shell.Draw("Aetherform", "", [
-                    new Destination("body", "Body installer", "B", DrawBody),
-                    new Destination("physics", "Physics preset builder", "P", DrawPhysics)
-                ], (p, _) => ImGui.GetWindowDrawList().AddText(p, 0xffced462, "AF"));
+                    new Destination("body", "Body installer", "", DrawBody) { DrawIcon = DrawBodyIcon },
+                    new Destination("physics", "Physics preset builder", "", DrawPhysics) { DrawIcon = DrawPhysicsIcon }
+                ], DrawHeaderMark);
             }
             finally { ImGui.End(); }
         }
         catch (Exception ex) { Report(ex); }
         finally { WindowShell.PopHostStyle(); }
+    }
+
+    private void DrawHeaderMark(Vector2 position, float size)
+    {
+        var texture = textures.GetFromManifestResource(typeof(Plugin).Assembly, "Aetherform.mark.png").GetWrapOrDefault();
+        if (texture != null)
+            ImGui.GetWindowDrawList().AddImage(texture.Handle, position, position + new Vector2(size),
+                new Vector2(.16f), new Vector2(.84f));
+    }
+
+    private static void DrawBodyIcon(Vector2 position, float size, uint color)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        Vector2 Point(float x, float y) => position + size * new Vector2(x, y);
+        draw.AddCircleFilled(Point(.5f, .24f), size * .2f, color);
+        draw.AddRectFilled(Point(.08f, .5f), Point(.92f, .93f), color, size * .18f);
+    }
+
+    private static void DrawPhysicsIcon(Vector2 position, float size, uint color)
+    {
+        var draw = ImGui.GetWindowDrawList();
+        float[] stops = [.35f, .72f, .45f];
+        for (int row = 0; row < stops.Length; row++)
+        {
+            var start = position + size * new Vector2(.05f, .17f + row * .33f);
+            draw.AddLine(start, start + new Vector2(.90f * size, 0), color, size * .09f);
+            draw.AddCircleFilled(start + new Vector2(stops[row] * size, 0), size * .12f, color);
+        }
     }
 
     private bool Collection()

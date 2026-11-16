@@ -13,6 +13,7 @@
     <Reference Include="Dalamud.Bindings.ImGui" HintPath="$(DalamudDir)/Dalamud.Bindings.ImGui.dll" Private="false"/>
     <ProjectReference Include="$(AetherglassSource)/Library/AetherglassUI.csproj" />
     <Reference Include="HexaGen.Runtime" HintPath="$(DalamudDir)/HexaGen.Runtime.dll" Private="false"/>
+    <EmbeddedResource Include="../assets/mark.png" LogicalName="Aetherform.mark.png"/>
     <None Update="Aetherform.json" CopyToOutputDirectory="PreserveNewest" />
     <Reference Include="Lumina" HintPath="$(DalamudDir)/Lumina.dll" Private="false"/>
   </ItemGroup>
