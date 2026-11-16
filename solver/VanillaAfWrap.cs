@@ -47,6 +47,8 @@ internal sealed class VanillaAfWrap
     private static readonly object Gate=new();
     private static (string Key,VanillaAfWrap Map)? cached;
     private readonly Vector3[] target;
+    private readonly (Vector3 A,Vector3 B)[] waist;
+    internal IReadOnlyList<(Vector3 A,Vector3 B)> Waist => waist;
 
     internal static VanillaAfWrap Get(Dictionary<string,byte[]> bodies)
     {
@@ -81,6 +83,20 @@ internal sealed class VanillaAfWrap
                 throw new InvalidDataException($"AF {slot} triangle order or UV layout does not match the baked map.");
             offset+=tri.Length;
         }
+        // The compatible AF bodies retain the vanilla upper/lower body join.
+        // Locate it from the coincident corners of the selected meshes.
+        int split=Baked.Value.Parts[0].Corners;
+        static Vector3 Key(Vector3 p)=>Vector3.Round(p*100000);
+        var upper=target.Take(split).Select(Key).ToHashSet();
+        var joint=new HashSet<(Vector3,Vector3)>();
+        for(int i=split;i<target.Length;i+=3)
+            for(int j=0;j<3;j++)
+            {
+                Vector3 a=target[i+j],b=target[i+(j+1)%3];
+                if(a!=b && upper.Contains(Key(a)) && upper.Contains(Key(b)) && !joint.Contains((b,a)))
+                    joint.Add((a,b));
+            }
+        waist=joint.ToArray();
     }
 
     internal static string MapId => Baked.Value.Id;

@@ -14,12 +14,15 @@ public static class GarmentFit
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
         var bodies = new Dictionary<string,byte[]>();
+        var stockBody = new List<BodySurface>();
         foreach (var (part, path) in targets)
         {
             var target = File.ReadAllBytes(path);
             if (part == "_dwn") ApplyLegShapes(target, legOptions);
             var vanilla = File.ReadAllBytes(originals[part]);
             bodies[part] = target;
+            if (slot is ("_top" or "_dwn") && ModelPartReader.Read(vanilla) is {} sourceBody)
+                stockBody.Add(BodySurface.OfBodyWorn(sourceBody,.025f));
             var refusal = BodyRetarget.BuildPair(part, vanilla, target,
                 part, false, null, null, uv, out var pair);
             if (refusal != null) throw new InvalidDataException(refusal);
@@ -59,7 +62,7 @@ public static class GarmentFit
             var cleared = (byte[])result.Clone();
             var map = VanillaAfWrap.Get(bodies);
             WrapGarment.Apply(garment,result,map,bindings,slot);
-            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot);
+            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot,stockBody);
             bindings.Save();
         }
         if (wearer != null && !sharedMale)

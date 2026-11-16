@@ -59,12 +59,12 @@ internal static class WrapGarment
                     memo[(p,src.Skin)]=fitted=map.Apply(bindings.Get(p,slot=="_dwn" && src.Skin),src.Skin);
                 if(slot=="_dwn")
                 {
-                    var prior=dst.Read(result,j);
-                    var cell=Cell(prior);
+                    var prior=map.Apply(bindings.Get(p,false),false);
+                    var cell=Cell(p);
                     if(src.Skin)
                     {
                         if(!corrections.TryGetValue(cell,out var list)) corrections[cell]=list=[];
-                        list.Add((prior,fitted-prior));
+                        list.Add((p,fitted-prior));
                     }
                     else if(corrections.Count>0)
                     {
@@ -75,7 +75,7 @@ internal static class WrapGarment
                             if(corrections.TryGetValue(cell+new Vector3(x,y,z),out var list))
                                 foreach(var sample in list)
                                 {
-                                    float d=Vector3.DistanceSquared(prior,sample.P);
+                                    float d=Vector3.DistanceSquared(p,sample.P);
                                     if(d<reach*reach) near.Add((d,sample.Delta));
                                 }
                         fitted=prior;

@@ -49,6 +49,23 @@ if (editCheck)
     smooth.Invoke(null,[panel,spike,triangles]);
     if(spike[4].Z>=.01f || !spike.Take(4).SequenceEqual(panel.Take(4)))
         throw new Exception("Smoothing failed to relax the interior displacement or moved a straight boundary.");
+    // Ask two nearby panels to move through each other. Both sample the
+    // same deformation and the attachment on the shared body join stays put.
+    var cage = solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.GarmentDeformation",true)!;
+    var apply = cage.GetMethod("Apply",BindingFlags.Instance|BindingFlags.NonPublic)!;
+    var argsTypes = apply.GetParameters();
+    var panels = (System.Collections.IList)Activator.CreateInstance(argsTypes[0].ParameterType)!;
+    var patch = panels.GetType().GetGenericArguments()[0];
+    Vector3[] inner = [new(0,1,0),new(.035f,1,0),new(0,1.035f,0)];
+    Vector3[] outer = inner.Select(p=>p+.002f*Vector3.UnitZ).ToArray();
+    var inside = inner.Select(p=>p+.02f*Vector3.UnitZ).ToArray();
+    var outside = outer.Select(p=>p-.02f*Vector3.UnitZ).ToArray();
+    foreach(var (rest,fit) in new[]{(inner,inside),(outer,outside)})
+        panels.Add(Activator.CreateInstance(patch,[rest,fit,new[]{0,1,2},new[]{0,1,2},new Dictionary<int,Vector3>()]));
+    apply.Invoke(Activator.CreateInstance(cage),[panels,new[]{(inner[0],inner[1])},null,
+        Activator.CreateInstance(argsTypes[3].ParameterType)]);
+    if(inside[0]!=inner[0] || inside[1]!=inner[1] || outside.Where((p,i)=>p.Z<=inside[i].Z).Any())
+        throw new Exception("Shared deformation lost layer order or moved an authored waist attachment.");
     var save = solver.DeclaringType!.GetMethod("SaveEditable")!;
     var folder = Directory.CreateDirectory(Path.Combine(lib,"test-output",Guid.NewGuid().ToString("N"))).FullName;
     try

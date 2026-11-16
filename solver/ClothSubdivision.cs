@@ -71,7 +71,7 @@ internal static class ClothSubdivision
         return indices.Chunk(3).Select(t=>bones[Find(t[0])].Count>1).ToArray();
     }
 
-    internal static byte[] Apply(byte[] vanilla,byte[] prior,byte[] wrapped,VanillaAfWrap map,GarmentBindings bindings,string slot)
+    internal static byte[] Apply(byte[] vanilla,byte[] prior,byte[] wrapped,VanillaAfWrap map,GarmentBindings bindings,string slot,List<BodySurface> stockBody)
     {
         var src=SecondSkinWriter.Parse(vanilla); var dst=SecondSkinWriter.Parse(wrapped);
         var before=SecondSkinWriter.Parse(prior);
@@ -96,6 +96,8 @@ internal static class ClothSubdivision
         var metadata=(byte[])wrapped.Clone();
         using var vertices=new MemoryStream(); using var indices=new MemoryStream();
         int vbSize=I(wrapped,40),ibSize=I(wrapped,52);
+        var panels=new List<GarmentDeformation.Panel>();
+        var emit=new List<Action>();
         for(int ordinal=0;ordinal<Math.Min(src.Lod0MeshCount,dst.Lod0MeshCount);ordinal++)
         {
             var mesh=new Layout(dst,dst.Lod0MeshIndex+ordinal);
@@ -156,30 +158,59 @@ internal static class ClothSubdivision
                 fit[mid]=linear+bound-mappedEnds;
                 PanelStreams.Midpoint(streams,strides,fields,a,b,mid);
             }
+            // A source face that bridges through the body is an interior closure.
+            // Its newly inserted vertices must follow the rim, not an independent
+            // body-surface projection from the middle of the closure.
+            var interior=new HashSet<int>();
+            var exterior=new HashSet<int>();
+            var clearanceFaces=new List<int>();
+            for(int j=0;j<old.Length;j+=3)
+            {
+                int a=old[j],b=old[j+1],c=old[j+2];
+                if(!selected[j/3]) continue;
+                bool inside=GarmentDeformation.SourceDepth((rest[a]+rest[b]+rest[c])/3,stockBody)<-.015f;
+                var set=inside?interior:exterior;
+                for(int corner=starts[j/3];corner<starts[j/3+1];corner++)
+                {
+                    int vertex=newIndices[corner];
+                    set.Add(vertex);
+                    if(!inside) clearanceFaces.Add(vertex);
+                }
+            }
+            interior.ExceptWith(exterior);
+            foreach(var ((a,b),mid) in edges)
+                if(interior.Contains(mid)) fit[mid]=(fit[a]+fit[b])/2;
             var faces=panel.ToArray();
             PanelGeometry.Smooth(rest,fit,faces);
-            PanelGeometry.Clear(fit,donor,rest,faces,skin,slot=="_top");
-            foreach(var (i,p) in pinned) fit[i]=p;
-            PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
-            var pe=fields.First(e=>e.Usage==0);
-            foreach(int i in faces.Distinct())
-                SecondSkinWriter.WriteXYZ(streams[pe.Stream],i*strides[pe.Stream]+pe.Offset,pe.Type,fit[i].X,fit[i].Y,fit[i].Z);
-            for(int s=0;s<3;s++) if(strides[s]>0)
+            PanelGeometry.TorsoReserve(fit,donor,faces,skin,slot=="_top");
+            panels.Add(new(rest,fit,faces,clearanceFaces.ToArray(),pinned));
+            emit.Add(()=>
             {
-                W(metadata,mesh.Header+20+4*s,checked(vbSize+(int)vertices.Length));
-                vertices.Write(streams[s]);
-            }
-            int first=checked((ibSize+(int)indices.Length)/2);
-            using(var writer=new BinaryWriter(indices,System.Text.Encoding.UTF8,true))
-                foreach(int i in newIndices) writer.Write(checked((ushort)i));
-            int sub=U(wrapped,mesh.Header+10),subs=U(wrapped,mesh.Header+12);
-            for(int j=sub;j<sub+subs;j++)
-            {
-                int h=dst.SubmeshStart+16*j, start=I(wrapped,h)-mesh.First,end=start+I(wrapped,h+4);
-                W(metadata,h,first+starts[start/3]); W(metadata,h+4,starts[end/3]-starts[start/3]);
-            }
-            Short(metadata,mesh.Header,count); W(metadata,mesh.Header+4,newIndices.Count); W(metadata,mesh.Header+16,first);
+                foreach(var ((a,b),mid) in edges)
+                    if(interior.Contains(mid) && !pinned.ContainsKey(mid)) fit[mid]=(fit[a]+fit[b])/2;
+                PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
+                var pe=fields.First(e=>e.Usage==0);
+                foreach(int i in faces.Distinct())
+                    SecondSkinWriter.WriteXYZ(streams[pe.Stream],i*strides[pe.Stream]+pe.Offset,pe.Type,fit[i].X,fit[i].Y,fit[i].Z);
+                for(int s=0;s<3;s++) if(strides[s]>0)
+                {
+                    W(metadata,mesh.Header+20+4*s,checked(vbSize+(int)vertices.Length));
+                    vertices.Write(streams[s]);
+                }
+                int first=checked((ibSize+(int)indices.Length)/2);
+                using(var writer=new BinaryWriter(indices,System.Text.Encoding.UTF8,true))
+                    foreach(int i in newIndices) writer.Write(checked((ushort)i));
+                int sub=U(wrapped,mesh.Header+10),subs=U(wrapped,mesh.Header+12);
+                for(int j=sub;j<sub+subs;j++)
+                {
+                    int h=dst.SubmeshStart+16*j, start=I(wrapped,h)-mesh.First,end=start+I(wrapped,h+4);
+                    W(metadata,h,first+starts[start/3]); W(metadata,h+4,starts[end/3]-starts[start/3]);
+                }
+                Short(metadata,mesh.Header,count); W(metadata,mesh.Header+4,newIndices.Count); W(metadata,mesh.Header+16,first);
+            });
         }
+        new GarmentDeformation().Apply(panels,map.Waist,skin,stockBody);
+        foreach(var write in emit) write();
         if(vertices.Length==0) return wrapped;
         int dv=checked((int)vertices.Length),di=checked((int)indices.Length);
         int vEnd=dst.Vb+vbSize,iEnd=dst.Ib+ibSize;

@@ -68,7 +68,7 @@ internal static class PanelGeometry
         return t*t*(3-2*t);
     }
 
-    internal static void Clear(Vector3[] fit,Vector3[] prior,Vector3[] rest,int[] tri,BodySurface skin,bool top)
+    internal static void TorsoReserve(Vector3[] fit,Vector3[] prior,int[] tri,BodySurface skin,bool top)
     {
         if(skin.IsEmpty) return;
         // In normalized female body space, reuse the first pass's outward reserve
@@ -81,33 +81,6 @@ internal static class PanelGeometry
                 *(1-Ramp(.118f,.174f,Math.Abs(p.X)))*Ramp(-.018f,.021f,p.Z);
             if(area>0 && Vector3.Dot(prior[i]-p,new(p.X,0,p.Z))>0)
                 fit[i]=Vector3.Lerp(p,prior[i],area);
-        }
-        // Probe vertices, edge spans and face interiors against the skin actually
-        // present in this output. Apply simultaneous corrections across UV seams.
-        for(int pass=0;pass<5;pass++)
-        {
-            var pushes=new Dictionary<Vector3,Vector3>();
-            void Probe(Vector3 p,int a,int b,int c)
-            {
-                if(!skin.Nearest(p,.025f,out var hit)) return;
-                var n=hit.Normal;
-                float signed=Vector3.Dot(p-hit.Point,n);
-                // Ignore nearest points far along a cut skin boundary.
-                if(signed>=.0015f || signed<-.021f || (p-hit.Point-signed*n).LengthSquared()>.000025f) return;
-                Vector3 push=n*(.0016f-signed);
-                foreach(int i in new[]{a,b,c})
-                    if(!pushes.TryGetValue(rest[i],out var old) || old.LengthSquared()<push.LengthSquared())
-                        pushes[rest[i]]=push;
-            }
-            foreach(int a in tri.Distinct()) Probe(fit[a],a,a,a);
-            for(int j=0;j<tri.Length;j+=3)
-            {
-                int a=tri[j],b=tri[j+1],c=tri[j+2];
-                Probe((fit[a]+fit[b]+fit[c])/3,a,b,c);
-                Probe((fit[a]+fit[b])/2,a,b,a); Probe((fit[b]+fit[c])/2,b,c,b); Probe((fit[c]+fit[a])/2,c,a,c);
-            }
-            if(pushes.Count==0) break;
-            for(int j=0;j<fit.Length;j++) if(pushes.TryGetValue(rest[j],out var push)) fit[j]+=push;
         }
     }
 }

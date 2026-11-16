@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Cloth Detail applies one subdivision pass to flexible vanilla panels, smooths refit displacement, and checks the final cloth against drawn skin. Includes baked bindings and editable fits.")
+                Changelog="Cloth Detail 2 moves nearby layers together, limits local stretch, preserves authored waist attachments, and keeps interior closures from being pushed through the skin.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
