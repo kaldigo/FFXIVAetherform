@@ -49,6 +49,56 @@ if (editCheck)
     smooth.Invoke(null,[panel,spike,triangles]);
     if(spike[4].Z>=.01f || !spike.Take(4).SequenceEqual(panel.Take(4)))
         throw new Exception("Smoothing failed to relax the interior displacement or moved a straight boundary.");
+    var bridge=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.PanelGeometry",true)!
+        .GetMethod("BridgeChest",BindingFlags.NonPublic|BindingFlags.Static)!;
+    var chestGrid=new List<Vector3>();
+    var indices=new List<int>();
+    for(int row=0;row<3;row++)
+    for(int column=0;column<9;column++)
+    {
+        int vertex=chestGrid.Count;
+        chestGrid.Add(new((column-4)*.015f,1.23f+row*.01f,.09f+.001f*Math.Abs(column-4)));
+        if(row<2 && column<8) indices.AddRange([vertex,vertex+1,vertex+9,vertex+1,vertex+10,vertex+9]);
+    }
+    var reference=chestGrid.ToArray();
+    var shaped=reference.ToArray();
+    var hold=new Dictionary<int,Vector3>();
+    bridge.Invoke(null,[reference,shaped,indices.ToArray(),hold]);
+    if(shaped.Where((p,i)=>Vector3.Distance(p,reference[i])>1e-6f).Any())
+        throw new Exception("Chest bridging changed the authored relief.");
+    foreach(int i in new[]{4,13,22}) shaped[i].Z-=.009f;
+    hold[4]=shaped[4];
+    bridge.Invoke(null,[reference,shaped,indices.ToArray(),hold]);
+    if(shaped[13].Z<reference[13].Z-.003f || shaped[4]!=hold[4])
+        throw new Exception("Chest bridging lost a sewn anchor or left the new center fold.");
+    var bridgeGusset=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.PanelGeometry",true)!
+        .GetMethod("BridgeGusset",BindingFlags.NonPublic|BindingFlags.Static)!;
+    var underside=reference.Select(p=>new Vector3(p.X,.852f+p.Z-.09f,p.Y-1.23f)).ToArray();
+    var fabric=underside.Select(p=>p+new Vector3(0,.005f,0)).ToArray();
+    var rim=Enumerable.Range(0,fabric.Length).Where(i=>Math.Abs(underside[i].X)>.029f)
+        .ToDictionary(i=>i,i=>fabric[i]);
+    fabric[13].Y+=.012f;
+    bridgeGusset.Invoke(null,[underside,fabric,indices.ToArray(),rim]);
+    if(Math.Abs(fabric[13].Y-underside[13].Y-.005f)>.00015f || rim.Any(e=>fabric[e.Key]!=e.Value))
+        throw new Exception("Gusset bridge lost its authored relief or moved the leg opening.");
+    var children=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.ClothSubdivision",true)!
+        .GetMethod("Children",BindingFlags.NonPublic|BindingFlags.Static)!;
+    Vector2[] points=[new(0,0),new(2,0),new(0,2),new(1,0),new(1,1),new(0,1)];
+    for(int mask=0;mask<8;mask++)
+    {
+        int Mid(int edge)=>(mask&(1<<edge))==0?-1:3+edge;
+        var tris=(int[])children.Invoke(null,[0,1,2,Mid(0),Mid(1),Mid(2)])!;
+        float area=0;
+        foreach(var t in tris.Chunk(3))
+        {
+            var a=points[t[1]]-points[t[0]]; var b=points[t[2]]-points[t[0]];
+            float cross=a.X*b.Y-a.Y*b.X;
+            if(cross<=0) throw new Exception("Reversed or degenerate seam triangle.");
+            area+=cross;
+        }
+        if(area!=4 || Enumerable.Range(0,3).Any(e=>tris.Contains(3+e)!=(Mid(e)>=0)))
+            throw new Exception("Subdivision changed patch area or split a protected rim.");
+    }
     // Ask two nearby panels to move through each other. Both sample the
     // same deformation and the attachment on the shared body join stays put.
     var cage = solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.GarmentDeformation",true)!;

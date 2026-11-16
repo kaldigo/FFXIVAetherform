@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Cloth Detail 3 preserves sewn openings and uses vanilla cloth-to-skin spacing for the refit. Penumbra applies saved fits on re-equip at a configurable priority (default -1). Existing editable fits are retained.")
+                Changelog="Cloth Detail 4 preserves the shape of fabric across the crotch and keeps sewn leg openings aligned with the skin during movement. Tops retain their sewn openings and follow the original cloth shape between the breasts. Earlier editable fits remain available.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

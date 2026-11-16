@@ -182,8 +182,8 @@ internal sealed class EquipRefits : IDisposable
         return new(id, root, shape, targets, legs, body, string.Join(" / ",labels.Concat(legs)), items, key);
     }
 
-    private static string Option(string preset,string shape,bool cloth) =>
-        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (cloth ? " Cloth Detail 3" : "");
+    private static string Option(string preset,string shape,string slot) =>
+        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Cloth Detail 4", "_dwn" => " Cloth Detail 4", _ => "" });
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
     {
@@ -202,7 +202,7 @@ internal sealed class EquipRefits : IDisposable
             string? selected=null;
             if(shape!=null && meta.TryGetProperty("Groups",out var groups))
             {
-                string option=Option(preset!,shape,dir.EndsWith("_top") || dir.EndsWith("_dwn"));
+                string option=Option(preset!,shape,dir[^4..]);
                 foreach (var group in groups.EnumerateArray())
                 {
                     if (group.GetProperty("Name").GetString() != "Fit") continue;
@@ -264,7 +264,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot is "_top" or "_dwn" ? "sewn-cloth-v1|" : "") + request.Shape + item.Path);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v2|", "_dwn" => "sewn-bottom-v2|", _ => "" }) + request.Shape + item.Path);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
@@ -336,7 +336,7 @@ internal sealed class EquipRefits : IDisposable
             using (var prior = JsonDocument.Parse(File.ReadAllBytes(meta)))
                 if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
                     throw new IOException("The refit directory belongs to another mod: " + dir);
-            string option=Option(snapshot.Preset,snapshot.Shape,item.Slot is "_top" or "_dwn");
+            string option=Option(snapshot.Preset,snapshot.Shape,item.Slot);
             string bodyFolder = Path.Combine(snapshot.Root,snapshot.BodyDirectory);
             var targets = Required(item.Slot).Where(snapshot.Targets.ContainsKey)
                 .ToDictionary(k => k,k => Path.GetRelativePath(bodyFolder,snapshot.Targets[k]));
