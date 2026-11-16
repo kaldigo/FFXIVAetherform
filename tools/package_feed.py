@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Cloth Detail 4 preserves the shape of fabric across the crotch and keeps sewn leg openings aligned with the skin during movement. Tops retain their sewn openings and follow the original cloth shape between the breasts. Earlier editable fits remain available.")
+                Changelog="Cloth Detail 5 smooths localized ridges across the back of long tops, including Ao Dai. It also updates chest panels and leg trim. Earlier editable fits remain available.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

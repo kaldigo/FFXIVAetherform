@@ -367,8 +367,18 @@ internal static class ClothSubdivision
                         if(count>0) foreach(int i in copies) fit[i]+=sum/count;
                     }
                 }
-                if(slot=="_dwn") PanelGeometry.BridgeGusset(rest,fit,faces,pinned);
-                if(slot=="_top") PanelGeometry.BridgeChest(rest,fit,faces,pinned);
+                if(slot=="_dwn")
+                {
+                    PanelGeometry.BridgeGusset(rest,fit,faces,pinned);
+                    PanelGeometry.BridgeLowerPanel(rest,fit,faces,fixedRim,true);
+                    PanelGeometry.CarryTrim(rest,fit,faces,fixedRim);
+                }
+                if(slot=="_top")
+                {
+                    PanelGeometry.RearDrape(rest,fit,faces,pinned,fittedBodies);
+                    PanelGeometry.RelaxBust(rest,fit,faces,pinned,stockBody,fittedBodies);
+                    PanelGeometry.BridgeChest(rest,fit,faces,pinned);
+                }
                 PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
                 var pe=fields.First(e=>e.Usage==0);
                 foreach(int i in faces.Distinct())

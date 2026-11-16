@@ -183,7 +183,7 @@ internal sealed class EquipRefits : IDisposable
     }
 
     private static string Option(string preset,string shape,string slot) =>
-        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Cloth Detail 4", "_dwn" => " Cloth Detail 4", _ => "" });
+        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Cloth Detail 5", "_dwn" => " Cloth Detail 5", _ => "" });
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
     {
@@ -264,7 +264,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "sewn-top-v2|", "_dwn" => "sewn-bottom-v2|", _ => "" }) + request.Shape + item.Path);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v3|", "_dwn" => "sewn-bottom-v3|", _ => "" }) + request.Shape + item.Path);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {

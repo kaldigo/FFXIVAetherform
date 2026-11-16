@@ -81,6 +81,25 @@ if (editCheck)
     bridgeGusset.Invoke(null,[underside,fabric,indices.ToArray(),rim]);
     if(Math.Abs(fabric[13].Y-underside[13].Y-.005f)>.00015f || rim.Any(e=>fabric[e.Key]!=e.Value))
         throw new Exception("Gusset bridge lost its authored relief or moved the leg opening.");
+    var bridgeLower=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.PanelGeometry",true)!
+        .GetMethod("BridgeLowerPanel",BindingFlags.NonPublic|BindingFlags.Static)!;
+    var front=reference.Select(p=>new Vector3(p.X,p.Y-.33f,p.Z)).ToArray();
+    var forward=front.Select(p=>p+new Vector3(0,0,.004f)).ToArray();
+    var openings=Enumerable.Range(0,front.Length).Where(i=>Math.Abs(front[i].X)>.029f)
+        .ToDictionary(i=>i,i=>forward[i]);
+    forward[13].Z-=.012f;
+    bridgeLower.Invoke(null,[front,forward,indices.ToArray(),openings,true]);
+    if(Math.Abs(forward[13].Z-front[13].Z-.004f)>.00015f || openings.Any(e=>forward[e.Key]!=e.Value))
+        throw new Exception("Front bridge left a center groove or moved the leg openings.");
+    var carryTrim=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.PanelGeometry",true)!
+        .GetMethod("CarryTrim",BindingFlags.NonPublic|BindingFlags.Static)!;
+    Vector3[] trimRest=[new(.06f,.70f,0),new(.10f,.70f,0),new(.06f,.74f,0),
+        new(.064f,.704f,.002f),new(.084f,.704f,.002f),new(.064f,.724f,.002f)];
+    var trimFit=trimRest.Select(p=>p+new Vector3(.002f,0,.008f)).ToArray();
+    trimFit[3].Z-=.005f;
+    carryTrim.Invoke(null,[trimRest,trimFit,new[]{0,1,2,3,4,5},new Dictionary<int,Vector3>{{0,trimFit[0]}}]);
+    if(trimFit.Skip(3).Any(p=>Math.Abs(p.Z-.010f)>1e-6f))
+        throw new Exception("Stocking trim lost its source stand-off from its support.");
     var children=solver.DeclaringType.Assembly.GetType("Aetherform.Geometry.ClothSubdivision",true)!
         .GetMethod("Children",BindingFlags.NonPublic|BindingFlags.Static)!;
     Vector2[] points=[new(0,0),new(2,0),new(0,2),new(1,0),new(1,1),new(0,1)];
