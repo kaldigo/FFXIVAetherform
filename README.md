@@ -2,7 +2,11 @@
 
 A Dalamud plugin for installing the Aetherform body and building physics presets in Penumbra. Open **/aetherform**. The installer and preset builder use the AetherglassUI window shell and controls.
 
-## Try the local bundle
+## Install through Dalamud
+
+In Dalamud custom plugin repositories, add https://raw.githubusercontent.com/kaldigo/DalamudPlugins/main/pluginmaster.json. Open /xlplugins, search for Aetherform and install it. The plugin reads your Aetherform.pmp and physics.zip from %APPDATA%/XIVLauncher/pluginConfigs/Aetherform/payload. Keep these files there across plugin updates. The public release includes the plugin and AetherglassUI.
+
+## Development bundle
 
 Extract the entire plugin ZIP to a dedicated folder. In Dalamud settings, open **Experimental**, add the extracted folder to **Dev Plugin Locations**, then load **Aetherform** under **Dev Tools → Installed Dev Plugins**. Load Penumbra.
 

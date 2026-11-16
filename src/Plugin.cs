@@ -18,8 +18,9 @@ public sealed partial class Plugin : IDalamudPlugin
     private readonly IFramework framework;
     private readonly ICommandManager commands;
     private readonly IPluginLog log;
-    private readonly string package, settings;
-    private readonly PhysicsBank bank;
+    private readonly string settings;
+    private PhysicsBank? bank;
+    private readonly string payloadDirectory, cacheDirectory;
     private readonly Profiles profiles;
     private readonly Dictionary<Guid, (string Key, int Priority)> active = [];
     private Dictionary<Guid, string> collections = [];
@@ -38,13 +39,14 @@ public sealed partial class Plugin : IDalamudPlugin
         this.commands = commands;
         this.log = log;
         var folder = pi.AssemblyLocation.DirectoryName!;
-        package = Path.Combine(folder, "Aetherform.pmp");
+        
         var config = pi.GetPluginConfigDirectory();
         Directory.CreateDirectory(config);
         settings = Path.Combine(config, "profiles.json");
         profiles = File.Exists(settings) ? JsonSerializer.Deserialize<Profiles>(File.ReadAllText(settings))! : new();
-        bank = new(Path.Combine(folder, "physics.zip"), Path.Combine(config, "physics"));
-        draft = bank.Defaults;
+        payloadDirectory = File.Exists(Path.Combine(folder, "physics.zip")) ? folder : Path.Combine(config, "payload");
+        cacheDirectory = Path.Combine(config, "physics");
+        draft = [];
         shell.Close = () => visible = false;
         commands.AddHandler("/aetherform", new CommandInfo((_, _) => Open()) { HelpMessage = "Open the Aetherform installer and physics builder." });
         pi.UiBuilder.Draw += Draw;
@@ -64,7 +66,7 @@ public sealed partial class Plugin : IDalamudPlugin
     private void Select(Guid id)
     {
         selected = id;
-        draft = profiles.Applied.TryGetValue(id, out var picks) && bank.Valid(picks) ? [.. picks] : bank.Defaults;
+        draft = profiles.Applied.TryGetValue(id, out var picks) && bank?.Valid(picks) == true ? [.. picks] : bank?.Defaults ?? [];
     }
     private void Tick(IFramework _)
     {
@@ -73,6 +75,13 @@ public sealed partial class Plugin : IDalamudPlugin
         nextPoll = Environment.TickCount64 + 2000;
         try
         {
+            if (bank == null)
+            {
+                var path = Path.Combine(payloadDirectory, "physics.zip");
+                if (!File.Exists(path)) return;
+                bank = new(path, cacheDirectory);
+                Select(selected);
+            }
             var mods = pi.GetIpcSubscriber<Dictionary<string, string>>("Penumbra.GetModList");
             if (!mods.HasFunction) { collections.Clear(); active.Clear(); body = null; return; }
             collections = pi.GetIpcSubscriber<Dictionary<Guid, string>>("Penumbra.GetCollections.V5").InvokeFunc();
@@ -109,6 +118,7 @@ public sealed partial class Plugin : IDalamudPlugin
     private void Install()
     {
         if (body != null) { Enable(selected); return; }
+        var package = Path.Combine(payloadDirectory, "Aetherform.pmp");
         if (!File.Exists(package)) throw new FileNotFoundException("The body package is missing.", package);
         Check(pi.GetIpcSubscriber<string,int>("Penumbra.InstallMod.V5").InvokeFunc(package));
         installing = selected;
@@ -135,7 +145,7 @@ public sealed partial class Plugin : IDalamudPlugin
         var key = string.Concat(picks);
         var priority = checked(values.Item2 + 1);
         if (active.TryGetValue(id, out var previous) && previous == (key, priority)) return;
-        var files = bank.Resolve(picks);
+        var files = bank!.Resolve(picks);
         if (previous.Priority != priority) Remove(id);
         Check(pi.GetIpcSubscriber<string,Guid,Dictionary<string,string>,string,int,int>("Penumbra.AddTemporaryMod.V5")
             .InvokeFunc(Tag, id, files, "", priority));
@@ -180,6 +190,6 @@ public sealed partial class Plugin : IDalamudPlugin
         commands.RemoveHandler("/aetherform");
         foreach (var id in active.Keys.ToArray())
             try { Remove(id); } catch (Exception ex) { Report(ex); }
-        bank.Dispose();
+        bank?.Dispose();
     }
 }

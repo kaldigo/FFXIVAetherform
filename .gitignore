@@ -5,3 +5,4 @@ payload/
 *.pmp
 *.zip
 __pycache__/
+/artifacts/

@@ -33,6 +33,14 @@ public sealed partial class Plugin
 
     private bool Collection()
     {
+        if (bank == null)
+        {
+            ImGui.TextWrapped("Copy your Aetherform.pmp and physics.zip into this folder to use the installer and physics builder.");
+            ImGui.TextWrapped(payloadDirectory);
+            if (Controls.ActionButton("Copy folder path")) ImGui.SetClipboardText(payloadDirectory);
+            if (status.Length > 0) ImGui.TextWrapped(status);
+            return false;
+        }
         if (collections.Count == 0)
         {
             ImGui.TextWrapped("Load Penumbra to select a collection.");
@@ -66,7 +74,7 @@ public sealed partial class Plugin
 
     private void DrawPhysics()
     {
-        if (!Collection()) return;
+        if (!Collection() || bank == null) return;
         for (int i = 0; i < bank.Index.Areas.Length; i++)
         {
             var area = bank.Index.Areas[i];
