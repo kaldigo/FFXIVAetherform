@@ -225,7 +225,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot is "_top" or "_dwn" ? "uv-wrap-v1|" : "") + request.Shape + item.Path);
+            var key = Hash((item.Slot is "_top" or "_dwn" ? "baked-wrap-v1|" : "") + request.Shape + item.Path);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
@@ -244,7 +244,7 @@ internal sealed class EquipRefits : IDisposable
                     string rig = item.Race == 101 ? "0201" : item.Race.ToString("D4");
                     var result = GarmentFit.Generate(Game(item.Path), item.Slot, item.Race, originals, selected, request.LegOptions,
                         item.Race == 201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
-                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), log);
+                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), log);
                     token.ThrowIfCancellationRequested();
                     Write(output,result);
                 }
@@ -299,7 +299,7 @@ internal sealed class EquipRefits : IDisposable
                 if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
                     throw new IOException("The refit directory belongs to another mod: " + dir);
             string option = snapshot.Preset.Replace(" / ", " + ") + " [" + snapshot.Shape[..12] + "]";
-            if (item.Slot is "_top" or "_dwn") option += " UV Wrap";
+            if (item.Slot is "_top" or "_dwn") option += " Baked Wrap";
             string bodyFolder = Path.Combine(snapshot.Root,snapshot.BodyDirectory);
             var targets = Required(item.Slot).Where(snapshot.Targets.ContainsKey)
                 .ToDictionary(k => k,k => Path.GetRelativePath(bodyFolder,snapshot.Targets[k]));

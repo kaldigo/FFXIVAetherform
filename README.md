@@ -19,7 +19,7 @@ The body ships with its own default physics. Custom presets resolve to one compl
 
 ## Vanilla refits on equip
 
-When Aetherform supplies both the selected chest and legs in your character’s effective collection, the plugin fits vanilla tops, bottoms, gloves and shoes as you wear them. The switch on **Body installer** is per collection and starts enabled. The target models come from the **Smallclothes** options, including the leg modifiers. Tops and bottoms use a 256 × 256 UV grid to register the selected AF surface to vanilla. The wrap transfers cloth with its rest-pose offset and binds matching exposed skin to AF. Grafted skin keeps its existing fit. UV Wrap appears as a separate Fit option when a garment already has an older refit. Gloves and shoes keep their hand and foot shapes.
+When Aetherform supplies both the selected chest and legs in your character’s effective collection, the plugin fits vanilla tops, bottoms, gloves and shoes as you wear them. The switch on **Body installer** is per collection and starts enabled. The target models come from the **Smallclothes** options, including the leg modifiers. Tops and bottoms use a 256 × 256 UV grid to register the selected AF surface to vanilla. The wrap transfers cloth with its rest-pose offset and binds matching exposed skin to AF. Grafted skin keeps its existing fit. Baked Wrap appears as a separate Fit option when a garment already has an older refit. Gloves and shoes keep their hand and foot shapes.
 
 Generated models appear under **Aetherform → Refits → Vanilla to Aetherform** in Penumbra. Each garment has its own mod with a Proteus Fit group, a separate option per target preset, and a Proteus/bodyretarget.json record. Choose the garment in Proteus to edit its fitted model. Previous outfit-cache files are reused on equip. The generated mod is enabled temporarily for the active collection at the lowest signed priority. Handmade model replacements win. Save upstream Proteus corrections as separate mods above the handmade fits. The local cache is separated by source and target under **refits/Vanilla/Aetherform**. Generated files are cached for reuse with the same shape and game version. The plugin watches the local player and leaves unsupported races, model layouts, and redirected equipment alone.
 
@@ -35,3 +35,12 @@ From this repository, run:
     python tools/package.py out/Aetherform.zip
 
 The last two steps require local copies of the indicated Aetherform inputs, including the derived YAB+, Tre and Tiramisu assets. Packaging checks the body file references, the packaged defaults, and every area selection across all eight supported race paths. The resulting ZIP includes AetherglassUI and both payloads.
+
+
+## Rebuilding the map
+
+Maintainers run the following command with Python, NumPy and opencv-python. Supply the unmodified female Midlander vanilla smallclothes models and the AF Yiggle Medium chest and Yiggle Medium B leg models. The tool applies Hip Dips and Soft Butt to the reference legs before baking. It reads the primary skin mesh from each MDL.
+
+    python tools/bake_vanilla_af.py VANILLA_TOP.mdl VANILLA_LEGS.mdl AF_TOP.mdl AF_LEGS.mdl solver/VanillaAF.map.gz
+
+Commit the resulting map. The release builds embed that file in Proteus.Refit.dll. They do not invoke or package the maintainer tool.

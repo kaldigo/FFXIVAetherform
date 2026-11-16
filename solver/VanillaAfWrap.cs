@@ -1,171 +1,129 @@
+using System.IO.Compression;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Proteus.Services;
 
 namespace Aetherform.Geometry;
 
-// Vanilla's mirrored half sheet and AF's Bibo layout share a UV parameterization.
 internal sealed class VanillaAfWrap
 {
-    private const int Grid = 256;
-    private readonly BakeBody wrapped;
-    private readonly (Vector3 Lo,Vector3 Hi,(int T,Vector3 Center)[] Faces)[] patches;
-    private readonly Vector3[] target;
-    private static readonly object Gate = new();
-    private static (string Key, VanillaAfWrap Map)? cached;
-
-    internal static VanillaAfWrap Get(Dictionary<string,(byte[] Vanilla, byte[] Af)> bodies)
+    private sealed record Part(int Corners, byte[] Signature);
+    internal readonly record struct Binding(int Corner, Vector3 Weights, Vector3 Offset);
+    private sealed record Patch(Vector3 Lo, Vector3 Hi, (int Corner, Vector3 Center)[] Faces);
+    private sealed class Reference
     {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var slot in new[] { "_top", "_dwn" })
+        internal readonly List<Part> Parts = [];
+        internal readonly Vector3[] Corners;
+        internal readonly Patch[] Patches;
+        internal readonly string Id;
+        internal Reference()
         {
-            hash.AppendData(SHA256.HashData(bodies[slot].Vanilla));
-            hash.AppendData(SHA256.HashData(bodies[slot].Af));
+            using var stream = typeof(VanillaAfWrap).Assembly.GetManifestResourceStream("Aetherform.VanillaAF.map.gz")
+                ?? throw new InvalidDataException("Missing baked vanilla to AF map.");
+            Id = Convert.ToHexString(SHA256.HashData(stream))[..16];
+            stream.Position = 0;
+            using var gzip = new GZipStream(stream,CompressionMode.Decompress);
+            using var reader = new BinaryReader(gzip);
+            if (!reader.ReadBytes(4).AsSpan().SequenceEqual("AFM1"u8)) throw new InvalidDataException("Invalid map header.");
+            var corners = new List<Vector3>();
+            for (int slot=0;slot<2;slot++)
+            {
+                int n=reader.ReadInt32();
+                if (n<=0 || n%3!=0 || n>1_000_000) throw new InvalidDataException("Invalid map size.");
+                Parts.Add(new(n,reader.ReadBytes(32)));
+                for(int i=0;i<n;i++) corners.Add(new(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle()));
+            }
+            if(gzip.ReadByte()!=-1) throw new InvalidDataException("Unexpected trailing map data.");
+            Corners=corners.ToArray();
+            Patches=Enumerable.Range(0,Corners.Length/3).Select(t=>(Corner:3*t,Center:
+                (Corners[3*t]+Corners[3*t+1]+Corners[3*t+2])/3))
+                .GroupBy(f=>new Vector3(MathF.Floor(f.Center.X*20),MathF.Floor(f.Center.Y*20),MathF.Floor(f.Center.Z*20)))
+                .Select(g=>new Patch(g.Key/20,(g.Key+Vector3.One)/20,g.ToArray())).ToArray();
         }
-        string key = Convert.ToHexString(hash.GetHashAndReset());
-        lock (Gate)
+    }
+
+    private static readonly Lazy<Reference> Baked=new(()=>new());
+    private static readonly object Gate=new();
+    private static (string Key,VanillaAfWrap Map)? cached;
+    private readonly Vector3[] target;
+
+    internal static VanillaAfWrap Get(Dictionary<string,byte[]> bodies)
+    {
+        string key=Convert.ToHexString(SHA256.HashData(bodies["_top"]))+Convert.ToHexString(SHA256.HashData(bodies["_dwn"]));
+        lock(Gate)
         {
-            if (cached is { } hit && hit.Key == key) return hit.Map;
-            var map = new VanillaAfWrap(bodies);
-            cached = (key, map);
+            if(cached is {} hit && hit.Key==key) return hit.Map;
+            var map=new VanillaAfWrap(bodies);
+            cached=(key,map);
             return map;
         }
     }
 
-    private sealed record Surface(Vector3[] P, Vector2[] Uv, int[] Tri)
+    private VanillaAfWrap(Dictionary<string,byte[]> bodies)
     {
-        public static Surface Read(byte[] mdl, string suffix)
-        {
-            if (!SecondSkinWriter.TryReadLod0Geometry(mdl, out var p, out var uv, out var tri,
-                name => name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && !name.Contains("e0000_")))
-                throw new InvalidDataException("Missing body surface for the vanilla to AF wrap.");
-            return new(Enumerable.Range(0,p.Length/3).Select(i => new Vector3(p[3*i],p[3*i+1],p[3*i+2])).ToArray(),
-                Enumerable.Range(0,uv.Length/2).Select(i => new Vector2(uv[2*i],uv[2*i+1])).ToArray(), tri);
-        }
-    }
-
-    private static float Cross(Vector2 a, Vector2 b) => a.X*b.Y-a.Y*b.X;
-
-    private static Vector3?[] Raster(Surface s, bool vanilla)
-    {
-        var grid = new Vector3?[Grid*Grid];
-        for (int i=0; i<s.Tri.Length; i+=3)
-        {
-            int a=s.Tri[i], b=s.Tri[i+1], c=s.Tri[i+2];
-            float side=Math.Sign(s.P[a].X+s.P[b].X+s.P[c].X);
-            Vector2 Chart(int j) => vanilla ? new(.5f+.5f*(s.Uv[j].X-1)*side,s.Uv[j].Y) : s.Uv[j];
-            var start=Chart(a); var u=Chart(b)-start; var v=Chart(c)-start;
-            float den=Cross(u,v);
-            if (Math.Abs(den)<1e-12f) continue;
-            var lo=Vector2.Min(start,Vector2.Min(Chart(b),Chart(c)))*Grid-new Vector2(.5f);
-            var hi=Vector2.Max(start,Vector2.Max(Chart(b),Chart(c)))*Grid-new Vector2(.5f);
-            for (int y=Math.Max(0,(int)MathF.Ceiling(lo.Y)); y<=Math.Min(Grid-1,(int)MathF.Floor(hi.Y)); y++)
-            for (int x=Math.Max(0,(int)MathF.Ceiling(lo.X)); x<=Math.Min(Grid-1,(int)MathF.Floor(hi.X)); x++)
-            {
-                var p=new Vector2((x+.5f)/Grid,(y+.5f)/Grid)-start;
-                float e=Cross(p,v)/den, f=Cross(u,p)/den;
-                if(e>=0 && f>=0 && e+f<=1) grid[y*Grid+x]=s.P[a]+e*(s.P[b]-s.P[a])+f*(s.P[c]-s.P[a]);
-            }
-        }
-        return grid;
-    }
-
-    private readonly record struct Landmark(Vector3 Point,Vector2 Uv,Vector3 Offset);
-
-    // Group landmarks spatially. A box's minimum XYZ distance bounds the full XYZ+UV distance.
-    private sealed record Block(Vector3 Lo,Vector3 Hi,Landmark[] Points);
-    private static Vector3 Offset(Vector3 p,Vector2 uv,Block[] blocks)
-    {
-        Span<float> nearest=stackalloc float[12];
-        Span<Vector3> offsets=stackalloc Vector3[12];
-        nearest.Fill(float.PositiveInfinity);
-        foreach(var block in blocks)
-        {
-            if(Vector3.DistanceSquared(p,Vector3.Clamp(p,block.Lo,block.Hi))>=nearest[^1]) continue;
-            foreach(var sample in block.Points)
-            {
-                float d=Vector3.DistanceSquared(p,sample.Point)+.1225f*Vector2.DistanceSquared(uv,sample.Uv);
-                if(d>=nearest[^1]) continue;
-                int j=nearest.Length-1;
-                while(j>0 && d<nearest[j-1]) { nearest[j]=nearest[j-1]; offsets[j]=offsets[j-1]; j--; }
-                nearest[j]=d; offsets[j]=sample.Offset;
-            }
-        }
-        Vector3 sum=default; float total=0;
-        for(int j=0;j<nearest.Length;j++)
-        {
-            float d=nearest[j]+1e-6f, weight=1/(d*MathF.Sqrt(d));
-            sum+=offsets[j]*weight; total+=weight;
-        }
-        return sum/total;
-    }
-
-    private VanillaAfWrap(Dictionary<string,(byte[] Vanilla,byte[] Af)> bodies)
-    {
-        var parts=new List<BakeBody.Part>();
-        var targets=new List<Vector3>();
+        target=new Vector3[Baked.Value.Corners.Length];
+        int offset=0,part=0;
         foreach(var slot in new[]{"_top","_dwn"})
         {
-            var body=Surface.Read(bodies[slot].Af,"_bibo.mtrl");
-            var ag=Raster(body,false);
-            var vg=Raster(Surface.Read(bodies[slot].Vanilla,"_a.mtrl"),true);
-            var samples=new List<Landmark>();
-            for(int i=0;i<ag.Length;i++)
-                if(ag[i] is {} a && vg[i] is {} v)
-                    samples.Add(new(a,new((i%Grid+.5f)/Grid,(i/Grid+.5f)/Grid),v-a));
-            if(samples.Count<12) throw new InvalidDataException("Insufficient shared vanilla and AF UV coverage.");
-            var blocks=samples.GroupBy(s=>new Vector3(MathF.Floor(s.Point.X*20),MathF.Floor(s.Point.Y*20),MathF.Floor(s.Point.Z*20))).Select(g=>
-                new Block(g.Key/20,(g.Key+Vector3.One)/20,g.ToArray())).ToArray();
-            var points=(Vector3[])body.P.Clone();
-            foreach(var seam in body.Tri.Distinct().GroupBy(i=>Vector3.Round(body.P[i]*1e6f)))
+            var reference=Baked.Value.Parts[part++];
+            if(!SecondSkinWriter.TryReadLod0Geometry(bodies[slot],out var p,out var uv,out var tri,
+                n=>n.EndsWith("_bibo.mtrl",StringComparison.OrdinalIgnoreCase)) || tri.Length!=reference.Corners)
+                throw new InvalidDataException($"AF {slot} topology does not match the baked map.");
+            var chart=new Vector2[tri.Length];
+            for(int j=0;j<tri.Length;j++)
             {
-                Vector3 sum=default;
-                foreach(int i in seam) sum+=body.P[i]+Offset(body.P[i],body.Uv[i],blocks);
-                var value=sum/seam.Count();
-                foreach(int i in seam) points[i]=value;
+                int i=tri[j];
+                chart[j]=new(uv[2*i],uv[2*i+1]);
+                target[offset+j]=new(p[3*i],p[3*i+1],p[3*i+2]);
             }
-            parts.Add(new(points.SelectMany(p=>new[]{p.X,p.Y,p.Z}).ToArray(),
-                body.Uv.SelectMany(p=>new[]{p.X,p.Y}).ToArray(),body.Tri,[],[]));
-            targets.AddRange(body.P);
+            if(!SHA256.HashData(MemoryMarshal.AsBytes(chart.AsSpan())).AsSpan().SequenceEqual(reference.Signature))
+                throw new InvalidDataException($"AF {slot} triangle order or UV layout does not match the baked map.");
+            offset+=tri.Length;
         }
-        target=targets.ToArray();
-        wrapped=new(parts);
-        patches=Enumerable.Range(0,wrapped.TriangleCount).Select(t=>(T:t,Center:
-            (wrapped.P[wrapped.Tri[t*3]]+wrapped.P[wrapped.Tri[t*3+1]]+wrapped.P[wrapped.Tri[t*3+2]])/3))
-            .GroupBy(f=>new Vector3(MathF.Floor(f.Center.X*20),MathF.Floor(f.Center.Y*20),MathF.Floor(f.Center.Z*20)))
-            .Select(g=>(g.Key/20,(g.Key+Vector3.One)/20,g.ToArray())).ToArray();
     }
 
-    internal Vector3 Fit(Vector3 p,bool skin)
+    internal static string MapId => Baked.Value.Id;
+    internal static int CornerCount => Baked.Value.Corners.Length;
+    internal static Binding Bind(Vector3 p,bool legsOnly)
     {
-        // Use the same local candidate set as the offline wrap. A long, thin
-        // triangle across a fold must not attract an unrelated cloth panel.
+        var data=Baked.Value;
         var nearest=new PriorityQueue<int,float>();
         float limit=float.PositiveInfinity;
-        foreach(var patch in patches)
+        foreach(var patch in data.Patches)
         {
             if(Vector3.DistanceSquared(p,Vector3.Clamp(p,patch.Lo,patch.Hi))>limit) continue;
             foreach(var face in patch.Faces)
             {
+                if(legsOnly && face.Corner<data.Parts[0].Corners) continue;
                 float d=Vector3.DistanceSquared(p,face.Center);
                 if(d>=limit) continue;
                 if(nearest.Count==64) nearest.Dequeue();
-                nearest.Enqueue(face.T,-d);
+                nearest.Enqueue(face.Corner,-d);
                 if(nearest.Count==64 && nearest.TryPeek(out _,out float bound)) limit=-bound;
             }
         }
         float best=float.PositiveInfinity;
-        Vector3 fit=p;
+        Binding result=default;
         foreach(var entry in nearest.UnorderedItems)
         {
-            int t=entry.Element*3, i=wrapped.Tri[t], j=wrapped.Tri[t+1], k=wrapped.Tri[t+2];
-            var contact=BrushTransfer.ClosestOnTriangle(p,wrapped.P[i],wrapped.P[j],wrapped.P[k],out float a,out float b,out float c);
-            float distance=Vector3.DistanceSquared(p,contact);
-            if(distance>=best) continue;
-            best=distance;
-            var surface=a*target[i]+b*target[j]+c*target[k];
-            fit=skin ? surface : p+surface-contact;
+            int t=entry.Element;
+            var contact=BrushTransfer.ClosestOnTriangle(p,data.Corners[t],data.Corners[t+1],data.Corners[t+2],
+                out float a,out float b,out float c);
+            float d=Vector3.DistanceSquared(p,contact);
+            if(d>=best || !float.IsFinite(d)) continue;
+            best=d;
+            result=new(t,new(a,b,c),p-contact);
         }
-        return fit;
+        if(!float.IsFinite(best)) throw new InvalidDataException("Could not bind garment vertex.");
+        return result;
+    }
+
+    internal Vector3 Apply(Binding binding,bool skin)
+    {
+        var w=binding.Weights;
+        int t=binding.Corner;
+        var surface=w.X*target[t]+w.Y*target[t+1]+w.Z*target[t+2];
+        return skin ? surface : surface+binding.Offset;
     }
 }

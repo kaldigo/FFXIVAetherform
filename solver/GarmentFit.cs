@@ -9,17 +9,17 @@ public static class GarmentFit
 {
     public static byte[] Generate(byte[] garment, string slot, ushort modelRace,
         IReadOnlyDictionary<string,string> originals, IReadOnlyDictionary<string,string> targets,
-        string[] legOptions, byte[]? deformer, byte[]? skeleton, IPluginLog log)
+        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, IPluginLog log)
     {
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
-        var bodies = new Dictionary<string,(byte[] Vanilla, byte[] Af)>();
+        var bodies = new Dictionary<string,byte[]>();
         foreach (var (part, path) in targets)
         {
             var target = File.ReadAllBytes(path);
             if (part == "_dwn") ApplyLegShapes(target, legOptions);
             var vanilla = File.ReadAllBytes(originals[part]);
-            bodies[part] = (vanilla,target);
+            bodies[part] = target;
             var refusal = BodyRetarget.BuildPair(part, vanilla, target,
                 part, false, null, null, uv, out var pair);
             if (refusal != null) throw new InvalidDataException(refusal);
@@ -53,7 +53,12 @@ public static class GarmentFit
         }
         var result = RefitCore.MatchSkinToBody(plan.Model, originals[slot],
             targets.Values.ToArray(), uv, false, log);
-        if (slot is "_top" or "_dwn") WrapGarment.Apply(garment, result, VanillaAfWrap.Get(bodies), slot);
+        if (slot is "_top" or "_dwn")
+        {
+            var bindings = new GarmentBindings(bindingDirectory,slot,garment);
+            WrapGarment.Apply(garment,result,VanillaAfWrap.Get(bodies),bindings,slot);
+            bindings.Save();
+        }
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         if (ModelPartReader.Read(result) == null) throw new InvalidDataException("Generated model failed read-back.");

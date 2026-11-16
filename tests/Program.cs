@@ -33,6 +33,9 @@ var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("A
 if (editCheck)
 {
 
+    var map = solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.VanillaAfWrap",true)!;
+    int corners = (int)map.GetProperty("CornerCount",BindingFlags.NonPublic|BindingFlags.Static)!.GetValue(null)!;
+    if (corners != 3*(14030+10260)) throw new Exception("Shipped reference topology changed.");
     var save = solver.DeclaringType!.GetMethod("SaveEditable")!;
     var folder = Directory.CreateDirectory(Path.Combine(lib,"test-output",Guid.NewGuid().ToString("N"))).FullName;
     try
@@ -72,7 +75,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     var options = test.GetProperty("legOptions").Deserialize<string[]>()!;
     ushort race = test.TryGetProperty("race", out var id) ? id.GetUInt16() : (ushort)201;
     byte[]? FileBytes(string property) => test.TryGetProperty(property, out var path) ? File.ReadAllBytes(path.GetString()!) : null;
-    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),log])!;
+    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),log])!;
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");
     var hash = Convert.ToHexString(SHA256.HashData(result));

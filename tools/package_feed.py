@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Vanilla tops and bottoms now use a UV-grid wrap to the selected Aetherform shapes. New editable UV Wrap fits are cached separately from earlier fits.")
+                Changelog="Vanilla tops and bottoms now use a baked AF body map. Garment bindings persist across shape changes and restarts. Earlier editable fits remain available.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
@@ -27,5 +27,6 @@ with ZipFile(package, "w", ZIP_DEFLATED) as archive:
         archive.write(build / name, name)
 with ZipFile(package) as archive:
     assert archive.testzip() is None
+    assert not any(p.startswith("tools/") or p.endswith((".py", ".pyc")) for p in archive.namelist())
 (out / "pluginmaster.json").write_text(json.dumps([manifest], indent=2) + "\n", encoding="utf-8")
 (out / "SHA256SUMS.txt").write_text(f"{hashlib.sha256(package.read_bytes()).hexdigest()}  Aetherform.zip\n")

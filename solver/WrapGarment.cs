@@ -36,7 +36,7 @@ internal static class WrapGarment
         }
     }
 
-    internal static void Apply(byte[] vanilla,byte[] result,VanillaAfWrap map,string slot)
+    internal static void Apply(byte[] vanilla,byte[] result,VanillaAfWrap map,GarmentBindings bindings,string slot)
     {
         var meshes=Meshes(vanilla).ToArray();
         var output=Meshes(result).ToArray();
@@ -56,7 +56,7 @@ internal static class WrapGarment
             {
                 var p=src.Read(vanilla,j);
                 if(!memo.TryGetValue((p,src.Skin),out var fitted))
-                    memo[(p,src.Skin)]=fitted=map.Fit(p,src.Skin);
+                    memo[(p,src.Skin)]=fitted=map.Apply(bindings.Get(p,slot=="_dwn" && src.Skin),src.Skin);
                 if(slot=="_dwn")
                 {
                     var prior=dst.Read(result,j);
