@@ -71,7 +71,7 @@ internal static class ClothSubdivision
         return indices.Chunk(3).Select(t=>bones[Find(t[0])].Count>1).ToArray();
     }
 
-    internal static byte[] Apply(byte[] vanilla,byte[] prior,byte[] wrapped,VanillaAfWrap map,GarmentBindings bindings,string slot,List<BodySurface> stockBody)
+    internal static byte[] Apply(byte[] vanilla,byte[] prior,byte[] wrapped,VanillaAfWrap map,GarmentBindings bindings,string slot,List<BodySurface> stockBody,List<BodySurface> fittedBodies)
     {
         var src=SecondSkinWriter.Parse(vanilla); var dst=SecondSkinWriter.Parse(wrapped);
         var before=SecondSkinWriter.Parse(prior);
@@ -92,6 +92,23 @@ internal static class ClothSubdivision
                     var a=points[corners[j+k]]; var b=points[corners[j+(k+1)%3]];
                     skinEdges.Add((a,b));
                 }
+        }
+        var joins=new Dictionary<(Vector3,Vector3),(Vector3,Vector3)>();
+        for(int i=0;i<Math.Min(src.Lod0MeshCount,dst.Lod0MeshCount);i++)
+        {
+            var originalSkin=new Layout(src,src.Lod0MeshIndex+i);
+            var fittedSkin=new Layout(dst,dst.Lod0MeshIndex+i);
+            if(!SecondSkinWriter.IsBodySkinMaterial(originalSkin.Material) || originalSkin.Material!=fittedSkin.Material) continue;
+            var corners=originalSkin.Indices();
+            if(!corners.SequenceEqual(fittedSkin.Indices())) continue;
+            var rest=originalSkin.Positions(originalSkin.Count);
+            var fit=fittedSkin.Positions(fittedSkin.Count);
+            for(int j=0;j<corners.Length;j+=3)
+            for(int k=0;k<3;k++)
+            {
+                int a=corners[j+k],b=corners[j+(k+1)%3];
+                joins[(SeamKey(rest[a]),SeamKey(rest[b]))]=(fit[a],fit[b]);
+            }
         }
         var metadata=(byte[])wrapped.Clone();
         using var vertices=new MemoryStream(); using var indices=new MemoryStream();
@@ -148,7 +165,13 @@ internal static class ClothSubdivision
                 donor[mid]=(donor[a]+donor[b])/2;
                 var linear=(fit[a]+fit[b])/2;
                 var ka=SeamKey(fit[a]); var kb=SeamKey(fit[b]);
-                if(skinEdges.Contains((ka,kb)) || skinEdges.Contains((kb,ka)))
+                var ra=SeamKey(rest[a]); var rb=SeamKey(rest[b]);
+                if(joins.TryGetValue((ra,rb),out var seam) || joins.TryGetValue((rb,ra),out seam))
+                {
+                    if(!joins.ContainsKey((ra,rb))) seam=(seam.Item2,seam.Item1);
+                    pinned[a]=seam.Item1; pinned[b]=seam.Item2; pinned[mid]=(seam.Item1+seam.Item2)/2;
+                }
+                else if(skinEdges.Contains((ka,kb)) || skinEdges.Contains((kb,ka)))
                 {
                     pinned[a]=fit[a]; pinned[b]=fit[b]; pinned[mid]=linear;
                 }
@@ -183,11 +206,74 @@ internal static class ClothSubdivision
             var faces=panel.ToArray();
             PanelGeometry.Smooth(rest,fit,faces);
             PanelGeometry.TorsoReserve(fit,donor,faces,skin,slot=="_top");
+            // The first row of trim follows the authored cross-section of the seam.
+            // Interpolate its motion from the sewn endpoints before the cage relaxes it.
+            var sewn=pinned.Keys.Where(i=>i<mesh.Count).ToHashSet();
+            var nearby=new Dictionary<int,List<int>>();
+            void Carry(int vertex,int anchor)
+            {
+                if(sewn.Contains(vertex) || !sewn.Contains(anchor) ||
+                   Vector3.DistanceSquared(rest[vertex],rest[anchor])>.04f*.04f) return;
+                if(!nearby.TryGetValue(vertex,out var anchors)) nearby[vertex]=anchors=[];
+                anchors.Add(anchor);
+            }
+            foreach(var (a,b) in edges.Keys) { Carry(a,b); Carry(b,a); }
+            foreach(var (vertex,anchors) in nearby)
+            {
+                // The nearest sewn point owns this row's stand-off. Preserve its
+                // local offset; averaging motion from distant anchors widens trim.
+                int anchor=anchors.MinBy(i=>Vector3.DistanceSquared(rest[vertex],rest[i]));
+                pinned[vertex]=pinned[anchor]+rest[vertex]-rest[anchor];
+            }
+            foreach(var ((a,b),mid) in edges)
+                if(!pinned.ContainsKey(mid) && pinned.TryGetValue(a,out var pa) && pinned.TryGetValue(b,out var pb))
+                    pinned[mid]=(pa+pb)/2;
             panels.Add(new(rest,fit,faces,clearanceFaces.ToArray(),pinned));
             emit.Add(()=>
             {
                 foreach(var ((a,b),mid) in edges)
                     if(interior.Contains(mid) && !pinned.ContainsKey(mid)) fit[mid]=(fit[a]+fit[b])/2;
+                // The shared cage can move a close panel away from its body after
+                // the first projection. Restore the authored contact before encoding.
+                foreach(int vertex in clearanceFaces.Distinct())
+                    if(!pinned.ContainsKey(vertex))
+                        fit[vertex]=WrapGarment.Contact(rest[vertex],fit[vertex],stockBody,fittedBodies);
+                // Vertex clearance alone misses a chord cutting across curved skin.
+                // Restore deficits measured on the actual emitted triangles.
+                var welded=faces.Distinct().GroupBy(i=>SeamKey(rest[i]))
+                    .Where(group=>!group.Any(pinned.ContainsKey)).Select(group=>group.ToArray()).ToArray();
+                var pushes=new Vector3[fit.Length];
+                var samples=new int[fit.Length];
+                for(int pass=0;pass<4;pass++)
+                {
+                    Array.Clear(pushes); Array.Clear(samples);
+                    bool changed=false;
+                    for(int j=0;j<clearanceFaces.Count;j+=3)
+                    {
+                        int a=clearanceFaces[j],b=clearanceFaces[j+1],c=clearanceFaces[j+2];
+                        int free=3-(pinned.ContainsKey(a)?1:0)-(pinned.ContainsKey(b)?1:0)-(pinned.ContainsKey(c)?1:0);
+                        if(free==0) continue;
+                        var source=(rest[a]+rest[b]+rest[c])/3;
+                        var center=(fit[a]+fit[b]+fit[c])/3;
+                        var push=WrapGarment.Contact(source,center,stockBody,fittedBodies,true)-center;
+                        if(push.LengthSquared()<1e-8f) continue;
+                        push*=3f/free;
+                        void Accumulate(int i)
+                        {
+                            if(pinned.ContainsKey(i)) return;
+                            pushes[i]+=push; samples[i]++;
+                        }
+                        Accumulate(a); Accumulate(b); Accumulate(c);
+                        changed=true;
+                    }
+                    if(!changed) break;
+                    foreach(var copies in welded)
+                    {
+                        var sum=Vector3.Zero; int count=0;
+                        foreach(int i in copies) { sum+=pushes[i]; count+=samples[i]; }
+                        if(count>0) foreach(int i in copies) fit[i]+=sum/count;
+                    }
+                }
                 PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
                 var pe=fields.First(e=>e.Usage==0);
                 foreach(int i in faces.Distinct())
@@ -209,7 +295,7 @@ internal static class ClothSubdivision
                 Short(metadata,mesh.Header,count); W(metadata,mesh.Header+4,newIndices.Count); W(metadata,mesh.Header+16,first);
             });
         }
-        new GarmentDeformation().Apply(panels,map.Waist,skin,stockBody);
+        new GarmentDeformation().Apply(panels,map.Waist,fittedBodies,stockBody);
         foreach(var write in emit) write();
         if(vertices.Length==0) return wrapped;
         int dv=checked((int)vertices.Length),di=checked((int)indices.Length);

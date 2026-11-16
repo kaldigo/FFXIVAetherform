@@ -15,6 +15,7 @@ public static class GarmentFit
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
         var bodies = new Dictionary<string,byte[]>();
         var stockBody = new List<BodySurface>();
+        var fittedBodies = new List<BodySurface>();
         foreach (var (part, path) in targets)
         {
             var target = File.ReadAllBytes(path);
@@ -22,7 +23,10 @@ public static class GarmentFit
             var vanilla = File.ReadAllBytes(originals[part]);
             bodies[part] = target;
             if (slot is ("_top" or "_dwn") && ModelPartReader.Read(vanilla) is {} sourceBody)
+            {
                 stockBody.Add(BodySurface.OfBodyWorn(sourceBody,.025f));
+                fittedBodies.Add(BodySurface.OfBodyWorn(ModelPartReader.Read(target)!, .025f));
+            }
             var refusal = BodyRetarget.BuildPair(part, vanilla, target,
                 part, false, null, null, uv, out var pair);
             if (refusal != null) throw new InvalidDataException(refusal);
@@ -40,6 +44,7 @@ public static class GarmentFit
             garment = route.Into(garment, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         }
         var model = ModelPartReader.Read(garment) ?? throw new InvalidDataException("Unreadable garment.");
+        bool attached = (slot is "_top" or "_dwn") && WrapGarment.HasSkinJoin(garment);
         BodyRetarget.Planned plan;
         if (slot is "_glv" or "_sho")
         {
@@ -50,19 +55,20 @@ public static class GarmentFit
         {
             var other = slot == "_top" ? "_dwn" : "_top";
             var shape = pairs[other] with { ShapeOnly = true };
-            plan = RefitCore.PlanRefit(model, garment, [pairs[slot], shape], slot, true, true, out _,
+            plan = RefitCore.PlanRefit(model, garment, [pairs[slot], shape], slot, !attached, true, out _,
                 transfer: slot == "_top" ? YabTransfer.LongCoatEnvelope : YabTransfer.Envelope,
                 strength: slot == "_top" ? .75f : 1f);
         }
-        var result = RefitCore.MatchSkinToBody(plan.Model, originals[slot],
+        var result = attached ? plan.Model : RefitCore.MatchSkinToBody(plan.Model, originals[slot],
             targets.Values.ToArray(), uv, false, log);
         if (slot is "_top" or "_dwn")
         {
             var bindings = new GarmentBindings(bindingDirectory,slot,garment);
             var cleared = (byte[])result.Clone();
             var map = VanillaAfWrap.Get(bodies);
-            WrapGarment.Apply(garment,result,map,bindings,slot);
-            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot,stockBody);
+            WrapGarment.Apply(garment,result,map,bindings,slot,attached,stockBody,fittedBodies);
+            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot,stockBody,fittedBodies);
+            if (attached) result = RefitCore.MatchSkinToBody(result, originals[slot], targets.Values.ToArray(), uv, false, log);
             bindings.Save();
         }
         if (wearer != null && !sharedMale)

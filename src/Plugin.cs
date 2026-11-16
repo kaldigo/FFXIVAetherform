@@ -8,6 +8,7 @@ namespace Aetherform;
 internal sealed class Profiles
 {
     public Dictionary<Guid, int[]> Applied { get; set; } = [];
+    public int RefitPriority { get; set; } = -1;
     public HashSet<Guid> RefitDisabled { get; set; } = [];
     public Dictionary<string, int[]> Named { get; set; } = [];
 }
@@ -103,7 +104,7 @@ public sealed partial class Plugin : IDalamudPlugin
                 if (body != null) { installing = null; Enable(target); }
                 else if (Environment.TickCount64 > deadline) { installing = null; status = "Import timed out. Check the import in Penumbra."; }
             }
-            fits.Update(root, body, profiles.RefitDisabled);
+            fits.Update(root, body, profiles.RefitDisabled,profiles.RefitPriority);
             foreach (var id in active.Keys.Except(collections.Keys).ToArray()) active.Remove(id);
             foreach (var id in profiles.Applied.Keys.Where(collections.ContainsKey)) Sync(id);
         }

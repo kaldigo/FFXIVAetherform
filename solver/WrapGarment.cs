@@ -36,7 +36,50 @@ internal static class WrapGarment
         }
     }
 
-    internal static void Apply(byte[] vanilla,byte[] result,VanillaAfWrap map,GarmentBindings bindings,string slot)
+    // A sewn opening depends on both sides retaining the same cut and bone weights.
+    internal static bool HasSkinJoin(byte[] garment)
+    {
+        var skin = new HashSet<(Vector3,Vector3)>();
+        var cloth = new HashSet<(Vector3,Vector3)>();
+        foreach (var mesh in Meshes(garment))
+        {
+            var boundary = new HashSet<(Vector3,Vector3)>();
+            var points = Enumerable.Range(0,mesh.Count)
+                .Select(i => Vector3.Round(mesh.Read(garment,i)*100000)).ToArray();
+            for (int i=0;i<mesh.Indices.Length;i+=3)
+            for (int j=0;j<3;j++)
+            {
+                var a=points[mesh.Indices[i+j]];
+                var b=points[mesh.Indices[i+(j+1)%3]];
+                if (a==b) continue;
+                var edge=(a.X,a.Y,a.Z).CompareTo((b.X,b.Y,b.Z))<0 ? (a,b) : (b,a);
+                if (!boundary.Add(edge)) boundary.Remove(edge);
+            }
+            (mesh.Skin ? skin : cloth).UnionWith(boundary);
+        }
+        return skin.Overlaps(cloth);
+    }
+
+    // Match the local distance on the same body part. A nearby opposing thigh
+    // or the underside of a cut body island is a poor reference for this point.
+    internal static Vector3 Contact(Vector3 source,Vector3 fitted,List<BodySurface> stock,List<BodySurface> targets,bool minimumOnly=false)
+    {
+        float nearest=minimumOnly ? 1f : .05f, gap=0;
+        int part=-1;
+        Vector3 normal=default;
+        for(int i=0;i<stock.Count;i++)
+        {
+            if(!stock[i].Nearest(source,nearest,out var hit)) continue;
+            nearest=hit.Distance;
+            normal=hit.Normal; gap=Vector3.Dot(source-hit.Point,normal); part=i;
+        }
+        if(part<0 || !targets[part].Nearest(fitted,Math.Max(.10f,nearest+.05f),out var target) ||
+           Vector3.Dot(normal,target.Normal)<.6f) return fitted;
+        float displacement=gap-Vector3.Dot(fitted-target.Point,target.Normal);
+        return minimumOnly && displacement<=0 ? fitted : fitted+target.Normal*displacement;
+    }
+
+    internal static void Apply(byte[] vanilla,byte[] result,VanillaAfWrap map,GarmentBindings bindings,string slot,bool attached,List<BodySurface> stock,List<BodySurface> targets)
     {
         var meshes=Meshes(vanilla).ToArray();
         var output=Meshes(result).ToArray();
@@ -57,8 +100,9 @@ internal static class WrapGarment
                 var p=src.Read(vanilla,j);
                 if(!memo.TryGetValue((p,src.Skin),out var fitted))
                     memo[(p,src.Skin)]=fitted=map.Apply(bindings.Get(p,slot=="_dwn" && src.Skin),src.Skin);
-                if(slot=="_dwn")
+                if(slot=="_dwn" || attached)
                 {
+                    if(attached && src.Skin) fitted=Contact(p,fitted,stock,targets);
                     var prior=map.Apply(bindings.Get(p,false),false);
                     var cell=Cell(p);
                     if(src.Skin)
@@ -78,7 +122,7 @@ internal static class WrapGarment
                                     float d=Vector3.DistanceSquared(p,sample.P);
                                     if(d<reach*reach) near.Add((d,sample.Delta));
                                 }
-                        fitted=prior;
+                        fitted=attached ? Contact(p,prior,stock,targets) : prior;
                         if(near.Count>0)
                         {
                             float total=0;
@@ -89,7 +133,7 @@ internal static class WrapGarment
                                 total+=w; delta+=w*sample.Delta;
                             }
                             float fade=1-MathF.Sqrt(near.Min(s=>s.D))/reach;
-                            fitted+=fade*fade*delta/total;
+                            fitted=Vector3.Lerp(fitted,prior+delta/total,fade*fade);
                         }
                     }
                 }

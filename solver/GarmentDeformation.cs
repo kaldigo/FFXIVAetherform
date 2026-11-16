@@ -13,7 +13,7 @@ internal sealed class GarmentDeformation
     private sealed class Node
     {
         public Vector3 Move, Push;
-        public float Weight;
+        public float Weight, PushWeight;
         public bool Fixed;
     }
     private readonly Dictionary<(int X,int Y,int Z),Node> nodes=[];
@@ -60,7 +60,7 @@ internal sealed class GarmentDeformation
         return depth;
     }
 
-    internal void Apply(List<Panel> panels,IReadOnlyList<(Vector3 A,Vector3 B)> waist,BodySurface? skin,List<BodySurface> stockBody)
+    internal void Apply(List<Panel> panels,IReadOnlyList<(Vector3 A,Vector3 B)> waist,List<BodySurface>? fittedBodies,List<BodySurface> stockBody)
     {
         if(panels.Count==0) return;
         foreach(var panel in panels)
@@ -94,8 +94,8 @@ internal sealed class GarmentDeformation
         LimitStrain();
         // Correct the shared field, rather than applying independent pushes to
         // the panel that happened to encounter skin. Include triangle interiors.
-        var depths=new Dictionary<Vector3,float>();
-        for(int pass=0;pass<8 && skin is { IsEmpty:false };pass++)
+        var contacts=new Dictionary<Vector3,(int Part,float Gap,Vector3 Normal)>();
+        for(int pass=0;pass<8 && fittedBodies is { Count: >0 };pass++)
         {
             bool changed=false;
             foreach(var panel in panels)
@@ -103,21 +103,36 @@ internal sealed class GarmentDeformation
                 Vector3 Point(int i)=>panel.Seams.TryGetValue(i,out var pinned)?pinned:panel.Rest[i]+At(panel.Rest[i]).Move();
                 void Probe(Vector3 p,Vector3 source,int a,int b,int c)
                 {
-                    if(!skin.Nearest(p,.025f,out var hit)) return;
-                    var diff=p-hit.Point; float d=Vector3.Dot(diff,hit.Normal);
-                    if(d>=.004f || d<-.023f || (diff-d*hit.Normal).LengthSquared()>.000025f) return;
-                    if(!depths.TryGetValue(source,out float original))
-                        depths[source]=original=SourceDepth(source,stockBody);
-                    if(original<-.004f) return;
-                    var push=hit.Normal*(.0043f-d);
+                    if(!contacts.TryGetValue(source,out var contact))
+                    {
+                        contact=(-1,0,default);
+                        float nearest=float.MaxValue;
+                        for(int part=0;part<stockBody.Count;part++)
+                        {
+                            if(!stockBody[part].Nearest(source,Math.Min(1f,nearest),out var stock)) continue;
+                            nearest=stock.Distance;
+                            contact=(part,Vector3.Dot(source-stock.Point,stock.Normal),stock.Normal);
+                        }
+                        contacts[source]=contact;
+                    }
+                    if(contact.Part<0 || contact.Gap<-.004f) return;
+                    if(!fittedBodies[contact.Part].Nearest(p,Math.Max(.025f,contact.Gap+.025f),out var hit) ||
+                       Vector3.Dot(contact.Normal,hit.Normal)<.5f) return;
+                    float fittedGap=Vector3.Dot(p-hit.Point,hit.Normal);
+                    float deficit=contact.Gap-fittedGap;
+                    if(deficit<=.00005f) return;
+                    var push=hit.Normal*deficit;
                     void Scatter(int i)
                     {
                         var s=At(panel.Rest[i]);
                         for(int j=0;j<8;j++)
                         {
                             var n=s.Nodes[j];
-                            if(!n.Fixed && s.Weights[j]>.015f && n.Push.LengthSquared()<push.LengthSquared())
-                            { n.Push=push; changed=true; }
+                            float weight=s.Weights[j];
+                            if(n.Fixed || weight<=.015f) continue;
+                            n.Push+=weight*push;
+                            n.PushWeight+=weight;
+                            changed=true;
                         }
                     }
                     Scatter(a); if(a!=b) Scatter(b); if(c!=a && c!=b) Scatter(c);
@@ -141,7 +156,11 @@ internal sealed class GarmentDeformation
                 }
             }
             if(!changed) break;
-            foreach(var n in nodes.Values) { n.Move+=n.Push; n.Push=default; }
+            foreach(var n in nodes.Values)
+            {
+                if(n.PushWeight>0) n.Move+=n.Push/n.PushWeight;
+                n.Push=default; n.PushWeight=0;
+            }
             LimitStrain();
         }
         foreach(var panel in panels)

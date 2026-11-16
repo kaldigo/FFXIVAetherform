@@ -99,6 +99,13 @@ public sealed partial class Plugin
             Save();
             nextPoll = 0;
         });
+        int priority=profiles.RefitPriority;
+        if(ImGui.InputInt("Generated refit priority",ref priority))
+        {
+            profiles.RefitPriority=priority;
+            Save();
+            nextPoll=0;
+        }
         if (fits.Status.Length > 0) ImGui.TextWrapped(fits.Status);
         ImGui.TextWrapped("Install the body in Penumbra and enable it in the selected collection. Choose your body shape, hands, feet and hair in the mod’s Penumbra settings.");
         ImGui.BeginDisabled(installing != null);
