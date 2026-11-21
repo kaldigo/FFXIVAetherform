@@ -59,7 +59,7 @@ public static class GarmentFit
             {
                 // Keep the original shared boundary and its skinning while converting to the AF material and UV layout.
                 ClothAttachments.Apply(garment,result,origins,classification);
-                result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
+                result=MatchRetainedSkin(garment,result,originals[slot],targets.Values.ToArray(),uv,log);
             }
             else try
             {
@@ -71,7 +71,7 @@ public static class GarmentFit
                 // Skin registration failed before clearance or attachment placement. The
                 // subdivided cloth still has its source triangle lineage on this path.
                 ClothAttachments.Apply(garment,result,origins,classification);
-                result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
+                result=MatchRetainedSkin(garment,result,originals[slot],targets.Values.ToArray(),uv,log);
             }
         }
         if (wearer != null && !sharedMale)
@@ -86,6 +86,38 @@ public static class GarmentFit
         }
         BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(14), checked((ushort)layout.MatCount));
         return result;
+    }
+
+    private static byte[] MatchRetainedSkin(byte[] source,byte[] fitted,string vanilla,string[] targets,UVRemapService uv,IPluginLog log)
+    {
+        // The mirrored skin layout assigns left and right from authored X and triangle
+        // connectivity. A fitted centerline can move across X=0 without changing UV islands.
+        var layout=SecondSkinWriter.Parse(source);
+        var skin=Enumerable.Range(layout.Lod0MeshIndex,layout.Lod0MeshCount)
+            .Where(m=>SecondSkinWriter.IsBodySkinMaterial(layout.MatNames[BitConverter.ToUInt16(source,layout.MeshStart+36*m+8)])).ToArray();
+        if(skin.Length==0) return fitted;
+        var input=(byte[])fitted.Clone();
+        CopySkinX(source,input,skin);
+        var converted=RefitCore.MatchSkinToBody(input,vanilla,targets,uv,false,log);
+        CopySkinX(fitted,converted,skin);
+        return converted;
+    }
+
+    private static void CopySkinX(byte[] from,byte[] to,int[] meshes)
+    {
+        var a=SecondSkinWriter.Parse(from);var b=SecondSkinWriter.Parse(to);
+        foreach(int m in meshes)
+        {
+            var src=a.Decls[m].First(f=>f.Usage==0);var dst=b.Decls[m].First(f=>f.Usage==0);
+            int ha=a.MeshStart+36*m,hb=b.MeshStart+36*m,count=BitConverter.ToUInt16(from,ha);
+            if(count!=BitConverter.ToUInt16(to,hb) || src.Type!=dst.Type)
+                throw new InvalidDataException("Retained skin vertex layout changed during UV conversion.");
+            int size=src.Type switch { 2 or 3=>4,13 or 14=>2,_=>throw new InvalidDataException("Unsupported skin position format.") };
+            int read=a.Vb+BitConverter.ToInt32(from,ha+20+4*src.Stream)+src.Offset;
+            int write=b.Vb+BitConverter.ToInt32(to,hb+20+4*dst.Stream)+dst.Offset;
+            for(int i=0;i<count;i++,read+=from[ha+32+src.Stream],write+=to[hb+32+dst.Stream])
+                from.AsSpan(read,size).CopyTo(to.AsSpan(write,size));
+        }
     }
 
     public static object? ModelAvailability(string path) => RacialModelBake.Switch(path, 201);

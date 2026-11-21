@@ -8,7 +8,7 @@ internal static class BustCurve
 {
     internal static void Apply(SecondSkinWriter.Source source,SecondSkinWriter.Source mapped,int mesh,GarmentClearance.Mesh native,
         GarmentClearance.Mesh draw,int[] parents,int[] node,Vector3[] centres,Vector3[] normals,
-        float[] strengths,bool[] eligible,HashSet<int>[] rings,HashSet<int> pinned,Dictionary<int,Vector3> moves)
+        float[] strengths,bool[] eligible,HashSet<int>[] rings,HashSet<int> pinned,Dictionary<int,Vector3> moves,Dictionary<int,(Vector3 Normal,float Blend)> shading)
     {
         var weights=source.Decls[mesh].FirstOrDefault(f=>f.Usage==1);
         var bones=source.Decls[mesh].FirstOrDefault(f=>f.Usage==2);
@@ -39,7 +39,7 @@ internal static class BustCurve
             Vector3.Cross(skinTriangles[3*i+1]-skinTriangles[3*i],skinTriangles[3*i+2]-skinTriangles[3*i]).LengthSquared()>1e-16f)
             ? new(skinTriangles.ToArray()) : null;
         var points=draw.P.Select((p,i)=>p+moves.GetValueOrDefault(i)).ToArray();
-        var corrections=new Dictionary<int,(Vector3 Delta,float Weight)>();
+        var corrections=new Dictionary<int,(Vector3 Delta,float Weight,Vector3 Normal,float Blend)>();
         foreach(int seed in seeds)
         {
             var nearby=new HashSet<int>(rings[seed]){seed};
@@ -75,20 +75,28 @@ internal static class BustCurve
                 float shift=(float)(z-Vector3.Dot(p,n));
                 if(!float.IsFinite(shift)||Math.Abs(shift)>12)continue;
                 var prior=corrections.GetValueOrDefault(v);
-                corrections[v]=(prior.Delta+n*(shift*blend*blend),prior.Weight+blend);
+                float dx=(float)((system[1,6]+2*x*system[3,6]+y*system[4,6])/20);
+                float dy=(float)((system[2,6]+x*system[4,6]+2*y*system[5,6])/20);
+                var normal=Vector3.Normalize(n-dx*ex-dy*ey);
+                corrections[v]=(prior.Delta+n*(shift*blend*blend),prior.Weight+blend,
+                    prior.Normal+blend*normal,Math.Max(prior.Blend,blend));
             }
         }
         foreach(var (v,correction) in corrections)
             {
             if(correction.Weight<=0)continue;
             var displacement=correction.Delta/correction.Weight;
+            float blend=correction.Blend;
             if(exposedSkin!=null)
             {
                 float distance=exposedSkin.Nearest(points[v]).Distance;
                 float t=Math.Clamp((distance-8)/12,0,1);
-                displacement*=t*t*(3-2*t);
+                float fade=t*t*(3-2*t);
+                displacement*=fade;blend*=fade;
             }
             moves[v]=moves.GetValueOrDefault(v)+displacement;
+            if(blend>0 && correction.Normal.LengthSquared()>1e-10f)
+                shading[v]=(Vector3.Normalize(correction.Normal),blend);
         }
     }
     private static bool Solve(double[,] matrix)

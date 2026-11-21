@@ -11,7 +11,7 @@ internal static class PanelStreams
     // Rotate the authored shading frame by the change in the local geometric
     // normal. Keep split normals, tangent handedness, and the fourth component.
     internal static void UpdateShading(byte[][] streams,int[] strides,E[] fields,
-        Vector3[] before,Vector3[] after,int[] triangles)
+        Vector3[] before,Vector3[] after,int[] triangles,Dictionary<int,(Vector3 Normal,float Blend)>? shading=null)
     {
         var from=new Vector3[before.Length];
         var to=new Vector3[after.Length];
@@ -31,8 +31,28 @@ internal static class PanelStreams
             if(from[i].LengthSquared()<1e-18f || to[i].LengthSquared()<1e-18f) continue;
             var n=Vector3.Normalize(from[i]); var m=Vector3.Normalize(to[i]);
             float dot=Vector3.Dot(n,m);
-            if(dot>.999999f || dot<-.9999f) continue;
-            var rotation=Quaternion.Normalize(new Quaternion(Vector3.Cross(n,m),1+dot));
+            if(dot<-.9999f) continue;
+            bool moved=dot<=.999999f;
+            var rotation=moved?Quaternion.Normalize(new Quaternion(Vector3.Cross(n,m),1+dot)):Quaternion.Identity;
+            if(shading!=null && shading.TryGetValue(i,out var curve))
+            {
+                var normal=frame.First(e=>e.Usage==3);
+                SecondSkinWriter.ReadTyped(streams[normal.Stream],i*strides[normal.Stream]+normal.Offset,normal.Type,components);
+                var encoded=new Vector3(components[0],components[1],components[2]);
+                if(normal.Type==8) encoded=2*encoded-Vector3.One;
+                if(encoded.LengthSquared()>1e-10f)
+                {
+                    var current=Vector3.Transform(Vector3.Normalize(encoded),rotation);
+                    if(Vector3.Dot(current,curve.Normal)>.7f)
+                    {
+                        var target=Vector3.Normalize(Vector3.Lerp(current,curve.Normal,curve.Blend));
+                        var adjust=Quaternion.Normalize(new Quaternion(Vector3.Cross(current,target),1+Vector3.Dot(current,target)));
+                        rotation=Quaternion.Normalize(adjust*rotation);
+                        moved=true;
+                    }
+                }
+            }
+            if(!moved) continue;
             foreach(var e in frame)
             {
                 var s=streams[e.Stream]; int offset=i*strides[e.Stream]+e.Offset;

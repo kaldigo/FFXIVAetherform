@@ -106,8 +106,9 @@ internal static class PanelPeaks
                 }
             }
             foreach(int v in pinned)moves.Remove(v);
-            BustCurve.Apply(original,mapped,mesh,a,draw,lineage.Parents,id,dst,nb,strength,eligible,ring,pinned,moves);
-            ModelPanelEdits.Write(fit,target,mesh,draw,moves);
+            var shading=new Dictionary<int,(Vector3 Normal,float Blend)>();
+            BustCurve.Apply(original,mapped,mesh,a,draw,lineage.Parents,id,dst,nb,strength,eligible,ring,pinned,moves,shading);
+            ModelPanelEdits.Write(fit,target,mesh,draw,moves,shading);
         }
     }
 
