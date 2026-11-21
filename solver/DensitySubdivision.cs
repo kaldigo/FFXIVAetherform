@@ -11,13 +11,14 @@ internal static class DensitySubdivision
     {
         internal static Edge Of(int a,int b)=>a<=b?new(a,b):new(b,a);
     }
-    internal static byte[] Apply(byte[] source,byte[] morph,BodyDensity density,Dictionary<int,ClothSubdivision.Origins> origins)
+    internal static byte[] Apply(byte[] source,byte[] morph,BodyDensity density,Dictionary<int,ClothSubdivision.Origins> origins,IReadOnlySet<int>? keepTopology=null)
     {
         var src=SecondSkinWriter.Parse(source);var refit=SecondSkinWriter.Parse(morph);
         var rims=ClothSubdivision.IdentifyJoins(src).Keys.ToLookup(k=>k.Mesh);
         var draws=new List<LodMeshWriter.Draw>();
         for(int m=src.Lod0MeshIndex;m<src.Lod0MeshIndex+src.Lod0MeshCount;m++)
         {
+            if(keepTopology?.Contains(m)==true) continue;
             int h=src.MeshStart+36*m;
             if(SecondSkinWriter.IsBodySkinMaterial(src.MatNames[BitConverter.ToUInt16(source,h+8)])) continue;
             if(src.Decls[m].Any(e=>!PanelStreams.Supported(e))) continue;

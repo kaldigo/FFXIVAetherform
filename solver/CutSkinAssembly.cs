@@ -11,11 +11,16 @@ internal sealed class CutSkinAssembly
     internal sealed record Assembly(SkinCutJoins.Result Cut, Dictionary<int,Knot> Knots, Corner[] Corners,IReadOnlyList<SkinRoutes.ClothKnot> Schedule);
 
     internal static Assembly Prepare(byte[] original, byte[] morphed, NativeSkinChart target)
+        => PrepareForFit(original,morphed,target,null);
+
+    internal static Assembly PrepareForFit(byte[] original,byte[] morphed,NativeSkinChart target,byte[]? bare)
     {
         var routes = SkinRoutes.For(original);
         var registered = GarmentSkin.Register(morphed,target,routes);
         var coverage = Compile(target.Cutting, registered.Select(f => new Region(f.UV,f.Domain)));
         var scheduled = routes?.Knots ?? GarmentBoundaryRoutes.Trace(original,target,registered,coverage);
+        var seams=new SkinSeamCoverage();
+        if(bare!=null && routes==null) seams.Complete(coverage,registered,target,original,bare);
         var samples = scheduled.Select(k => new SkinCutJoins.Sample(k.Face,k.Target,k.Variable)).ToArray();
         var surface = SkinCutJoins.Conform(coverage,target.PhysicalCorners,samples,target.PositionsMm);
         var model = SecondSkinWriter.Parse(morphed);
@@ -59,7 +64,7 @@ internal sealed class CutSkinAssembly
             {
                 var p=coordinates[j];
                 var skin=target.Evaluate(cut.Face,p);
-                var carrier=field.At(cut,p);
+                var carrier=field.At(cut,seams.Carrier(target,cut,p));
                 cornersOut[3*i+j]=new(skin with { PositionMm=skin.PositionMm+carrier.OffsetMm },carrier);
             }
         }

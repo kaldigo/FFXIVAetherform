@@ -6,7 +6,6 @@ namespace Aetherform.Geometry;
 
 public sealed class GarmentClassification
 {
-    public bool PreserveSkinCut { get; init; }
     public Dictionary<string,int[][]> SurfaceAttachments { get; init; } = [];
     public int Schema { get; init; }
     public string Model { get; init; } = "";

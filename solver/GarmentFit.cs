@@ -51,11 +51,15 @@ public static class GarmentFit
         else
         {
             var morphed = new NativeMorph(bodies,chestOption,legOption).Apply(garment);
+            MorphContinuity.Apply(garment,morphed);
             morphed=GarmentSupport.Apply(garment,morphed,classification);
             var origins = new Dictionary<int,ClothSubdivision.Origins>();
-            result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins);
+            var overlays=SkinOverlays.Find(garment);
+            result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins,overlays);
             PanelPeaks.Apply(garment,morphed,result,classification,NativeMorph.VanillaSurface,origins);
-            if(classification?.PreserveSkinCut == true)
+            var joins=ClothSubdivision.IdentifyJoins(SecondSkinWriter.Parse(garment),out bool unmatchedCut);
+            bool sewnTop=slot=="_top" && (unmatchedCut || joins.Count>0) && SkinRoutes.For(garment)==null;
+            if(overlays.Count>0 || sewnTop)
             {
                 // Keep the original shared boundary and its skinning while converting to the AF material and UV layout.
                 ClothAttachments.Apply(garment,result,origins,classification);
@@ -63,7 +67,7 @@ public static class GarmentFit
             }
             else try
             {
-                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],origins,classification);
+                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],File.ReadAllBytes(originals[slot]),origins,classification);
             }
             catch (SkinRegistrationException ex) when (SkinRoutes.For(garment)==null)
             {

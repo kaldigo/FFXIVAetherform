@@ -10,6 +10,7 @@ internal static class PanelPeaks
         ClearanceSurface body,Dictionary<int,ClothSubdivision.Origins> origins)
     {
         var original=SecondSkinWriter.Parse(source);var mapped=SecondSkinWriter.Parse(morph);var target=SecondSkinWriter.Parse(fit);
+        var skinRims=new Lazy<(Vector3,Vector3)[]>(()=>SkinSeamCoverage.SlotEdges(source));
         foreach(var (mesh,lineage) in origins)
         {
             var a=new GarmentClearance.Mesh(original,mesh);var b=new GarmentClearance.Mesh(mapped,mesh);
@@ -106,6 +107,7 @@ internal static class PanelPeaks
                 }
             }
             foreach(int v in pinned)moves.Remove(v);
+            BustPanelDrape.Apply(original,mesh,a,draw,lineage,id,rest,dst,eligible,strength,moves,skinRims);
             var shading=new Dictionary<int,(Vector3 Normal,float Blend)>();
             BustCurve.Apply(original,mapped,mesh,a,draw,lineage.Parents,id,dst,nb,strength,eligible,ring,pinned,moves,shading);
             ModelPanelEdits.Write(fit,target,mesh,draw,moves,shading);

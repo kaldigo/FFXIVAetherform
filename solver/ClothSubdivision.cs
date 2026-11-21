@@ -56,8 +56,10 @@ internal static class ClothSubdivision
     }
 
     internal readonly record struct Rim(int Mesh,int A,int B,Vector3 Start,Vector3 End);
-    internal static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source)
+    internal static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source) => IdentifyJoins(source,out _,false);
+    internal static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source,out bool unmatchedCut,bool inspectCut=true)
     {
+        unmatchedCut=false;
         var skin=new List<Rim>(); var cloth=new List<Rim>();
         var layouts=new Dictionary<int,Layout>();
         for(int m=source.Lod0MeshIndex;m<source.Lod0MeshIndex+source.Lod0MeshCount;m++)
@@ -111,6 +113,27 @@ internal static class ClothSubdivision
             }
             if(matches.Count==1) result[(edge.Mesh,edge.A,edge.B)]=matches[0];
         }
+        if(!inspectCut)return result;
+        // Vertices split by a material, UV island, visibility mask or skinning
+        // weights need not have the same tessellation on both sides of a hem.
+        // A complete source edge supported by the opposite rim is a join even
+        // if it cannot be represented by the one-to-one replacement schedule.
+        bool Touch(Vector3 point,Rim edge)
+        {
+            var ab=edge.End-edge.Start;
+            float t=Math.Clamp(Vector3.Dot(point-edge.Start,ab)/Math.Max(1e-14f,ab.LengthSquared()),0,1);
+            return Vector3.DistanceSquared(point,edge.Start+t*ab)<1e-8f;
+        }
+        bool Follows(Rim edge,List<Rim> opposite)
+        {
+            if(Vector3.DistanceSquared(edge.Start,edge.End)<4e-6f)return false;
+            var center=(edge.Start+edge.End)/2;
+            if(!opposite.Any(e=>Touch(center,e)))return false;
+            return opposite.Any(e=>Touch(edge.Start,e)) && opposite.Any(e=>Touch(edge.End,e));
+        }
+        var paired=result.Values.Select(e=>(e.Mesh,Math.Min(e.A,e.B),Math.Max(e.A,e.B))).ToHashSet();
+        unmatchedCut=cloth.Any(e=>!result.ContainsKey((e.Mesh,e.A,e.B)) && Follows(e,skin))
+            || skin.Any(e=>!paired.Contains((e.Mesh,e.A,e.B)) && Follows(e,cloth));
         return result;
     }
 
