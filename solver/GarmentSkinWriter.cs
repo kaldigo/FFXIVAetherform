@@ -14,8 +14,8 @@ internal static class GarmentSkinWriter
         if(meshes.Length==0) return cloth;
         var chart=new NativeSkinChart(body);
         var assembly=CutSkinAssembly.Prepare(original,morphed,chart);
-        SkinDisplacement.Apply(chart,assembly,morphed,classification);
-        cloth=GarmentClearance.Apply(original,morphed,cloth,assembly,origins,classification);
+        var topology=SkinDisplacement.Apply(chart,assembly,morphed,classification);
+        cloth=GarmentClearance.Apply(original,morphed,cloth,assembly,origins,classification,topology);
         var ids=Enumerable.Range(0,assembly.Cut.Triangles.Count)
             .ToLookup(i=>assembly.Corners[3*i].Carrier.Source.Mesh);
         var target=SecondSkinWriter.Parse(body);

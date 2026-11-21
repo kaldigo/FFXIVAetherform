@@ -60,7 +60,7 @@ internal static class GarmentClearance
     private sealed record Panel(int Id,Mesh Draw,Vector3[] Source,int[] Labels,bool[] Protected);
     private sealed record Island(ClearanceSurface Old,ClearanceSurface Carrier,ClearanceSurface Target);
     internal static byte[] Apply(byte[] original,byte[] morphed,byte[] cloth,CutSkinAssembly.Assembly cut,
-        Dictionary<int,ClothSubdivision.Origins> origins,GarmentClassification? classification)
+        Dictionary<int,ClothSubdivision.Origins> origins,GarmentClassification? classification,SkinDisplacement.Topology topology)
     {
         if(cut.Corners.Length==0) return cloth;
         var src=SecondSkinWriter.Parse(original);var dst=SecondSkinWriter.Parse(cloth);var mr=SecondSkinWriter.Parse(morphed);
@@ -257,6 +257,7 @@ internal static class GarmentClearance
                 before=after;candidate=trial;applied=true;break;
             }
             if(!applied) break;
-        }        return output;
+        }        CoveredSkinClearance.Restore(cut,topology,candidate,cutTri,oldCarrier,track);
+        return output;
     }
 }

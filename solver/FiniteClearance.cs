@@ -27,6 +27,7 @@ internal static class FiniteClearance
         var constraints=new List<Witness>();
         for(int scan=0;scan<8;scan++)
         {
+            var start=(Vector3[])field.Clone();
             float initial=0;
             for(int f=0;f<ids.Length;f+=3)
             {
@@ -84,6 +85,25 @@ internal static class FiniteClearance
                     worst=Math.Max(worst,violation);
                 }
                 if(worst<=.001f) break;
+            }
+            // Keep the correction in a neighbourhood that retains its inherited
+            // orientation on the target surface. Shared cut nodes move together.
+            var frozen=new bool[field.Length];
+            for(int pass=0;pass<12;pass++)
+            {
+                bool good=true;
+                for(int t=0;t<ids.Length;t+=3)
+                {
+                    int a=ids[t],b=ids[t+1],c=ids[t+2];
+                    var p=native[a]+start[a];var q=native[b]+start[b];var r=native[c]+start[c];
+                    var before=Vector3.Cross(q-p,r-p);if(before.LengthSquared()<4e-12f) continue;
+                    p=native[a]+field[a];q=native[b]+field[b];r=native[c]+field[c];
+                    if(Vector3.Dot(before,Vector3.Cross(q-p,r-p))>0) continue;
+                    frozen[a]=frozen[b]=frozen[c]=true;good=false;
+                }
+                if(good) break;
+                for(int i=0;i<frozen.Length;i++) if(frozen[i]) field[i]=start[i];
+                if(pass==11) Array.Copy(start,field,field.Length);
             }
         }
     }

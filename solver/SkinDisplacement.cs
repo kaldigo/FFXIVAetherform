@@ -16,10 +16,11 @@ internal static class SkinDisplacement
         return new(v[0].Id,v[1].Id,v[2].Id,(long)Math.Round(v[0].W*1e10),(long)Math.Round(v[1].W*1e10));
     }
 
-    internal static void Apply(NativeSkinChart target,CutSkinAssembly.Assembly assembly,byte[] morphed,GarmentClassification? classification)
+    internal sealed record Topology(int[] Nodes,bool[] Anchors);
+    internal static Topology Apply(NativeSkinChart target,CutSkinAssembly.Assembly assembly,byte[] morphed,GarmentClassification? classification)
     {
         var corners=assembly.Corners;
-        if(corners.Length==0) return;
+        if(corners.Length==0) return new([],[]);
         var ids=new int[corners.Length];var registry=new Dictionary<Address,int>();
         var native=new List<Vector3>();var raw=new List<Vector3>();var count=new List<int>();
         for(int j=0;j<ids.Length;j++)
@@ -182,5 +183,6 @@ internal static class SkinDisplacement
             }
             corners[j]=corners[j] with {Skin=skin with {PositionMm=native[i]+solved[i],Normal=normal}};
         }
+        return new(ids,fixedNode);
     }
 }

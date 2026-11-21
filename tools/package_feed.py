@@ -8,16 +8,16 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 tag = sys.argv[1]
 root = Path(__file__).resolve().parents[1]
-out = root / "artifacts"
+out = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else root / "artifacts"
 out.mkdir(exist_ok=True)
-build = root / "src/bin/Release/net10.0-windows"
+build = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root / "src/bin/Release/net10.0-windows"
 manifest = json.loads((build / "Aetherform.json").read_text(encoding="utf-8"))
 repo = manifest["RepoUrl"]
 url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Cloth Detail 5 smooths localized ridges across the back of long tops, including Ao Dai. It also updates chest panels and leg trim. Earlier editable fits remain available.")
+                Changelog="Vanilla gear now uses the Aetherform body morph, local cloth density, native AF skin cuts, shared animated seams and clearance checks. Classification updates refresh generated fits. Earlier editable fits remain available.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

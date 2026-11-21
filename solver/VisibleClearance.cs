@@ -4,15 +4,15 @@ namespace Aetherform.Geometry;
 
 internal static class VisibleClearance
 {
-    internal sealed record Evidence(int[] Samples,Vector3[] Directions);
+    internal sealed record Evidence(int[] Samples,Vector3[] Directions,HashSet<int> SkinFaces);
 
     // Input positions and depth are in millimetres. Count only newly exposed
     // replacement skin where the morphed garment skin used to clear the cloth.
-    internal static Evidence Inspect(Vector3[] cloth, Vector3[] cut, Vector3[] carrier, bool[] tracked)
+    internal static Evidence Inspect(Vector3[] cloth, Vector3[] cut, Vector3[] carrier, bool[] tracked,bool captureSkin=false)
     {
         if(cloth.Length!=3*tracked.Length || cut.Length%3!=0 || carrier.Length%3!=0)
             throw new ArgumentException("Expected triangle corner arrays.");
-        var result=new Evidence(new int[tracked.Length],new Vector3[tracked.Length]);
+        var result=new Evidence(new int[tracked.Length],new Vector3[tracked.Length],[]);
         if(cloth.Length==0 || cut.Length==0 || carrier.Length==0 || !tracked.Contains(true)) return result;
         Vector3[][] sets=[cloth,cut,carrier];
         var projected=sets.Select(s=>new Vector3[s.Length]).ToArray();
@@ -37,6 +37,7 @@ internal static class VisibleClearance
             const int band=128;
             int capacity=checked(width*Math.Min(height,band));
             var owner=new int[capacity];
+            var skinOwner=captureSkin?new int[capacity]:null;
             var depth=sets.Select(_=>new float[capacity]).ToArray();
             for(int y=bottom;y<bottom+height;y+=band)
             {
@@ -44,7 +45,7 @@ internal static class VisibleClearance
                 for(int s=0;s<sets.Length;s++)
                 {
                     Array.Fill(depth[s],float.NegativeInfinity,0,width*rows);
-                    Raster(projected[s],left,y,width,rows,depth[s],s==0?owner:null);
+                    Raster(projected[s],left,y,width,rows,depth[s],s==0?owner:s==1?skinOwner:null);
                 }
                 for(int i=0;i<width*rows;i++)
                 {
@@ -54,6 +55,7 @@ internal static class VisibleClearance
                     if(depth[1][i]>threshold && depth[2][i]<=threshold)
                     {
                         result.Samples[face]++;
+                        if(skinOwner!=null) result.SkinFaces.Add(skinOwner[i]);
                         result.Directions[face]+=view;
                     }
                 }
