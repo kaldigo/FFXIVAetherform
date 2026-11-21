@@ -6,7 +6,7 @@ namespace Aetherform.Geometry;
 
 internal static class GarmentSkinWriter
 {
-    internal static byte[] Replace(byte[] original,byte[] morphed,byte[] cloth,byte[] body,byte[] bare,Dictionary<int,ClothSubdivision.Origins> origins,GarmentClassification? classification)
+    internal static byte[] Replace(byte[] original,byte[] morphed,byte[] cloth,byte[] body,byte[] bare,Dictionary<int,ClothSubdivision.Origins> origins,GarmentClassification? classification,bool fitLegs)
     {
         var src=SecondSkinWriter.Parse(morphed);
         var meshes=Enumerable.Range(src.Lod0MeshIndex,src.Lod0MeshCount)
@@ -21,6 +21,7 @@ internal static class GarmentSkinWriter
         var topology=SkinDisplacement.Apply(chart,assembly,morphed,classification);
         cloth=GarmentClearance.Apply(original,morphed,cloth,assembly,origins,classification,topology);
         ClothAttachments.Apply(original,cloth,origins,classification);
+        if(fitLegs)StockingContour.Apply(assembly,original,src,cloth,topology);
         var ids=Enumerable.Range(0,assembly.Cut.Triangles.Count)
             .ToLookup(i=>assembly.Corners[3*i].Carrier.Source.Mesh);
         var target=SecondSkinWriter.Parse(body);

@@ -67,7 +67,7 @@ public static class GarmentFit
             }
             else try
             {
-                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],File.ReadAllBytes(originals[slot]),origins,classification);
+                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],File.ReadAllBytes(originals[slot]),origins,classification,slot=="_dwn");
             }
             catch (SkinRegistrationException ex) when (SkinRoutes.For(garment)==null)
             {
