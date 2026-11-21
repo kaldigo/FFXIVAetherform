@@ -68,6 +68,9 @@ public static class GarmentFit
             catch (SkinRegistrationException ex) when (SkinRoutes.For(garment)==null)
             {
                 log.Warning("[Aetherform] Preserved morphed garment skin for {Slot}. AF registration needs review: {Reason}",slot,ex.Message);
+                // Skin registration failed before clearance or attachment placement. The
+                // subdivided cloth still has its source triangle lineage on this path.
+                ClothAttachments.Apply(garment,result,origins,classification);
                 result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
             }
         }

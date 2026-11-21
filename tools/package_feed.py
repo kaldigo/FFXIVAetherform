@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Records the surface review of 1,763 faces across 130 Aetherloom and Steward gear meshes and applies the verified adjacent-panel fitting rules.")
+                Changelog="Keeps reviewed decorations attached to their supporting cloth when AF skin registration falls back. Includes updated attachment classifications for 13 garment models.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
