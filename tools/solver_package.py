@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def add_solver(archive, root, build):
-    lib = root / "out/solver/lib"
+    lib = root / "vendor/proteus/lib"
     archive.write(build / "Proteus.Refit.dll", "Proteus.Refit.dll")
     for path in sorted(lib.glob("*.dll")):
         archive.write(path, path.name)

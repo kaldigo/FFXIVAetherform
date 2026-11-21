@@ -15,7 +15,7 @@ Extract the entire plugin ZIP to a dedicated folder. In Dalamud settings, open *
 3. Open **Physics preset builder**. Set chest motion, height, collision, butt, belly, thighs, genitals, Miqo’te ears and tail independently. Choose **Apply to collection**, then redraw your character in Penumbra. Named presets can be loaded into another collection and applied there.
 4. Switching your character back to its original collection restores that collection's appearance. Each applied preset is restored while the body is enabled and the plugin is loaded. Unloading the plugin removes its temporary physics redirects.
 
-The body ships with its own default physics. Custom presets resolve to one complete physics file per supported race at one priority above the body. The plugin extracts the selected precomputed files locally and reuses them. The catalog comes from the Aetherform physics bank with its reduced ear bounce and V1 tail. Binaries and body assets are staged separately from this public source repository.
+The body ships with its own default physics. Custom presets resolve to one complete physics file per supported race at one priority above the body. The plugin extracts the selected precomputed files locally and reuses them. The catalog comes from the Aetherform physics bank with its reduced ear bounce and V1 tail. The pinned Proteus solver libraries are in vendor/proteus. Body assets are staged separately.
 
 ## Vanilla refits on equip
 
@@ -29,7 +29,6 @@ Requires Windows, .NET 10, Python 3, and the Dalamud API 15 development assembli
 
 From this repository, run:
 
-    ./tools/fetch-solver.ps1
     dotnet build src/Aetherform.csproj -c Release
     python tools/prepare.py "path/to/Aetherform v0.1.6.pmp" "path/to/Aetherform Physics v0.2.0.zip" payload
     python tools/package.py out/Aetherform.zip

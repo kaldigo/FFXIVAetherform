@@ -30,9 +30,6 @@ runs:
         New-Item -ItemType Directory -Force -Path $referencePath | Out-Null
         Copy-Item (Join-Path $dll.Directory.FullName '*') $referencePath -Recurse -Force
         "DALAMUD_HOME=$referencePath\" | Out-File $env:GITHUB_ENV -Append
-    - name: Fetch the pinned headless geometry library
-      shell: pwsh
-      run: ./tools/fetch-solver.ps1
     - name: Build exact source and run regressions
       shell: pwsh
       env:
