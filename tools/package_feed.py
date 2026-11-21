@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Vanilla gear now uses the Aetherform body morph, local cloth density, native AF skin cuts, shared animated seams and clearance checks. Classification updates refresh generated fits. Earlier editable fits remain available.")
+                Changelog="Adds the full 167-model garment classification review. The plugin now includes 173 unique model records. Affected cached fits refresh when equipped.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
