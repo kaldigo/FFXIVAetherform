@@ -66,6 +66,14 @@ public static class GarmentFit
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         if (ModelPartReader.Read(result) == null) throw new InvalidDataException("Generated model failed read-back.");
+        var layout = SecondSkinWriter.Parse(result);
+        for (int mesh = 0; mesh < BinaryPrimitives.ReadUInt16LittleEndian(result.AsSpan(layout.Mh + 4)); mesh++)
+        {
+            int material = BinaryPrimitives.ReadUInt16LittleEndian(result.AsSpan(layout.MeshStart + 36 * mesh + 8));
+            if (material >= layout.MatCount)
+                throw new InvalidDataException($"Mesh {mesh} references material {material} outside the material table.");
+        }
+        BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(14), checked((ushort)layout.MatCount));
         return result;
     }
 

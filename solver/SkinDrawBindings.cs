@@ -79,7 +79,12 @@ internal static class SkinDrawBindings
         Short(src.DeclEnd,U(src.DeclEnd)+newBones.Length+(mat<0?1:0));
         Int(src.DeclEnd+4,checked((int)src.StrSize+growth+pad));
         Short(src.Mh+12,bones.Count);
-        if(mat<0){mat=src.MatCount;Short(src.Mh+10,mat+1);}
+        if(mat<0)
+        {
+            mat=src.MatCount;
+            Short(src.Mh+10,mat+1);
+            Short(14,mat+1); // The loader allocates material handles from the file header.
+        }
         foreach(int m in perMesh.Keys.Where(m=>skinMeshes==null || skinMeshes.Contains(m))) Short(src.MeshStart+36*m+8,mat);
         if(v6) Short(src.Mh+44,((int)packed.Length-4*palettes.Count)/2);
         int delta=edits.Sum(e=>e.Bytes.Length-e.Removed);

@@ -10,6 +10,7 @@ internal static class LodWriterCheck
         var model=type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[mdl])!;
         object Field(string name)=>model.GetType().GetField(name)!.GetValue(model)!;
         int Get(string name)=>Convert.ToInt32(Field(name));
+        if (BitConverter.ToUInt16(mdl,14) != Get("MatCount")) throw new InvalidDataException("File and model material counts disagree.");
         var points=new Dictionary<(int X,int Y,int Z,string Weights),int>();
         var names=(List<string>)Field("MatNames");var bones=(string[])Field("BoneNames");
         var palettes=(ushort[][])Field("BoneTables");
