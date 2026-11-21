@@ -9,7 +9,7 @@ public static class GarmentFit
 {
     public static byte[] Generate(byte[] garment, string slot, ushort modelRace,
         IReadOnlyDictionary<string,string> originals, IReadOnlyDictionary<string,string> targets,
-        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, GarmentClassification? classification, IPluginLog log)
+        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, GarmentClassification? classification, IPluginLog log, string chestOption, string legOption)
     {
         if (classification != null && !classification.Matches(garment)) classification = null;
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
@@ -49,7 +49,7 @@ public static class GarmentFit
         }
         else
         {
-            var morphed = new NativeMorph(bodies).Apply(garment);
+            var morphed = new NativeMorph(bodies,chestOption,legOption).Apply(garment);
             morphed=GarmentSupport.Apply(garment,morphed,classification);
             var origins = new Dictionary<int,ClothSubdivision.Origins>();
             result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins);

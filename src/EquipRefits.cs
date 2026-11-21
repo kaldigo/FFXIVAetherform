@@ -33,7 +33,7 @@ internal sealed class EquipRefits : IDisposable
     private readonly HashSet<string> failures = [];
     private sealed record Item(string Path, string Output, string Slot, ushort Race, ClassificationStore.Entry Classification);
     private sealed record Snapshot(Guid Collection, string Root, string Shape, Dictionary<string,string> Targets,
-        string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key);
+        string ChestOption, string LegOption, string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key);
     private sealed record Fit(Item Item, string Model);
     private sealed record Batch(Snapshot Inputs, List<Fit> Fits, List<(string Item, string Reason)> Errors);
     private Task<Batch>? job;
@@ -132,12 +132,12 @@ internal sealed class EquipRefits : IDisposable
         if (code != 0 || setting is not { Item1: true } effective) return Inactive();
         ReadChoices(Path.Combine(root,body));
         var targets = new Dictionary<string,string>();
-        var labels = new List<string>();
+        var labels = new Dictionary<string,string>();
         foreach (var (slot, group) in Groups)
         {
             var selected = effective.Item3.GetValueOrDefault(group)?.FirstOrDefault() ?? defaults[slot];
             if (choices[slot].TryGetValue(selected, out var path)) targets[slot] = path;
-            if (slot is "_top" or "_dwn") labels.Add(selected);
+            if (slot is "_top" or "_dwn") labels[slot] = selected;
         }
         bool Supplied(string slot) => VanillaToAetherform.Supplies(slot, wearerRace, targets, path => Resolved(id,path));
         if (!Supplied("_top") || !Supplied("_dwn")) return Inactive();
@@ -146,7 +146,7 @@ internal sealed class EquipRefits : IDisposable
         var legs = effective.Item3.GetValueOrDefault("Leg Options")?.Order().ToArray() ?? [];
         var shape = Hash("Vanilla/Aetherform/native-skin-v2|" + gameVersion + "|" + string.Join('|', legs) + "|" +
             string.Join('|', targets.Select(t => t.Key + t.Value + File.GetLastWriteTimeUtc(t.Value).Ticks)));
-        var preset=string.Join(" / ",labels.Concat(legs));
+        var preset=string.Join(" / ",new[]{labels["_top"],labels["_dwn"]}.Concat(legs));
         if(SyncOptions(root,id,shape,preset)) { drawing=true; return null; }
         var tree = pi.GetIpcSubscriber<ushort[],Dictionary<string,HashSet<string>>?[]>("Penumbra.GetGameObjectResourcePaths.V5")
             .InvokeFunc([0]).FirstOrDefault();
@@ -182,11 +182,11 @@ internal sealed class EquipRefits : IDisposable
         }
         var items = pieces.Values.OrderBy(x => x.Path).ToArray();
         var key = Hash(id + "|" + root + "|" + shape + "|" + string.Join('|',items.Select(i => i.Path + i.Classification.Revision)));
-        return new(id, root, shape, targets, legs, body, string.Join(" / ",labels.Concat(legs)), items, key);
+        return new(id, root, shape, targets, labels["_top"], labels["_dwn"], legs, body, preset, items, key);
     }
 
     private static string Option(string preset,string shape,string slot,string revision) =>
-        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Wrap Fit 2 " + revision[..Math.Min(12,revision.Length)], "_dwn" => " Wrap Fit 2 " + revision[..Math.Min(12,revision.Length)], _ => "" });
+        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Wrap Fit 3 " + revision[..Math.Min(12,revision.Length)], "_dwn" => " Wrap Fit 3 " + revision[..Math.Min(12,revision.Length)], _ => "" });
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
     {
@@ -267,7 +267,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "sewn-top-v4|", "_dwn" => "sewn-bottom-v4|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v5|", "_dwn" => "sewn-bottom-v5|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
@@ -286,7 +286,7 @@ internal sealed class EquipRefits : IDisposable
                     string rig = item.Race == 101 ? "0201" : item.Race.ToString("D4");
                     var result = GarmentFit.Generate(Game(item.Path), item.Slot, item.Race, originals, selected, request.LegOptions,
                         item.Race == 201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
-                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), item.Classification.Data, log);
+                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), item.Classification.Data, log, request.ChestOption, request.LegOption);
                     token.ThrowIfCancellationRequested();
                     Write(output,result);
                 }

@@ -55,6 +55,13 @@ AssemblyLoadContext.Default.Resolving += (_, name) =>
 var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("Aetherform.Geometry.GarmentFit")!.GetMethod("Generate")!;
 if (editCheck)
 {
+    var wrapAssembly = solver.DeclaringType!.Assembly;
+    var loadSize = wrapAssembly.GetType("Aetherform.Geometry.NativeMorph",true)!
+        .GetMethod("LoadSize",BindingFlags.Static|BindingFlags.NonPublic)!;
+    foreach (var chest in new[] {"XS","Small","Medium","Large"})
+        foreach (var leg in new[] {"Medium","Large"})
+            loadSize.Invoke(null,[$"{chest}-{leg}"]);
+
 
     var map = solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.VanillaAfWrap",true)!;
     int corners = (int)map.GetProperty("CornerCount",BindingFlags.NonPublic|BindingFlags.Static)!.GetValue(null)!;
@@ -185,7 +192,7 @@ if (editCheck)
     finally { Directory.Delete(folder,true); }
     return;
 }
-var log = DispatchProxy.Create(solver.GetParameters()[^1].ParameterType, typeof(QuietLog));
+var log = DispatchProxy.Create(solver.GetParameters().Single(p=>p.Name=="log").ParameterType, typeof(QuietLog));
 var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())
 {
@@ -201,11 +208,27 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     var classification = test.TryGetProperty("classification",out var recordPath)
         ? solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.GarmentClassification")!.GetMethod("Read")!.Invoke(null,
             [File.ReadAllBytes(recordPath.GetString()!),Path.GetFileNameWithoutExtension(recordPath.GetString()!)]) : null;
+    string chestOption = test.TryGetProperty("chestOption",out var chestLabel) ? chestLabel.GetString()! : "Small";
+    string legOption = test.TryGetProperty("legOption",out var legLabel) ? legLabel.GetString()! : "Medium - B";
     if (test.TryGetProperty("nativeMorphOutput", out var nativeOutput))
     {
         var morphType = solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.NativeMorph",true)!;
         var reference = targets.ToDictionary(k => k.Key,k => File.ReadAllBytes(k.Value));
-        var mapper = Activator.CreateInstance(morphType,BindingFlags.Instance|BindingFlags.NonPublic,null,[reference],null)!;
+        var mapper = Activator.CreateInstance(morphType,BindingFlags.Instance|BindingFlags.NonPublic,null,[reference,chestOption,legOption],null)!;
+        if (test.TryGetProperty("expectedWrapDelta",out var expectedDelta))
+        {
+            var deltas = (Vector3[])morphType.GetField("delta",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(mapper)!;
+            using var expected = new BinaryReader(File.OpenRead(expectedDelta.GetString()!));
+            float maxMm = 0;
+            foreach (var actual in deltas)
+            {
+                var authored = new Vector3(expected.ReadSingle(),expected.ReadSingle(),expected.ReadSingle());
+                maxMm = Math.Max(maxMm,1000*Vector3.Distance(authored,actual));
+            }
+            if (expected.BaseStream.Position != expected.BaseStream.Length || !(maxMm < .001f))
+                throw new InvalidDataException($"Wrap mismatch for {chestOption}/{legOption}: {maxMm} mm.");
+            Console.WriteLine($"{chestOption}/{legOption}: maximum Wrap displacement error {maxMm:F6} mm.");
+        }
         var native = (byte[])morphType.GetMethod("Apply",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(mapper,[game])!;
         File.WriteAllBytes(nativeOutput.GetString()!,native);
         if (test.TryGetProperty("auditSkinRegistration",out var enabled) && enabled.GetBoolean())
@@ -221,7 +244,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
             Console.WriteLine($"{test.GetProperty("model").GetString()}: {registered.Count} registered skin faces, {knots.Count} cloth knots.");
         }
     }
-    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log])!;
+    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
     if(expectedKnots!=null) LodWriterCheck.CheckJoins(solver.DeclaringType!.Assembly,result,expectedKnots);
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");

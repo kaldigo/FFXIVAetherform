@@ -1,0 +1,61 @@
+{
+  "engine": "Faceform Wrap 2025.11.14",
+  "project": "Full-Body-Repaired.wrap",
+  "sourceProjectSha256": "fd06c5be9592e1fe30e222ef9696fc598794df4957565bc077b5c72cf53ca35b",
+  "sourcePointsSha256": "07348e94e42990d28c8cf9f2ff2b815815cc174a19d20f3d03decb980214e05f",
+  "targetPointsSha256": "f448642bb25734a178b0e85f9e5ae0fe93a0c01704899474507ca453abb8876e",
+  "lengthUnit": "mm",
+  "vanillaPoints": 14420,
+  "vanillaFaces": 28746,
+  "legReference": "B, Hip Dips and Soft Butt off",
+  "sizes": {
+    "XS-Medium": {
+      "sourceSha256": "6e3eb99fd880c7aab5fbc49ec8854e270e54919beedeb431e84608300a064a53",
+      "targetSha256": "555c1f0cdbf6aefaf642e3bd0fe54588580e345432719df9df954929d5a116d2",
+      "wrapOutputSha256": "1dafcf366595a6ef5a72aed1a5968cd93a974519df6399fb3d23913c32ef093e",
+      "resourceSha256": "98a136c126632da2ca3fb34044fecce700967557542061578fb31e4348991ecf"
+    },
+    "XS-Large": {
+      "sourceSha256": "06c6fa22ee247c13480bcbdd6e23a99125c1cc89b1273b0bafd0b6c4c4cb2434",
+      "targetSha256": "9744122e8d11a33dced271deb76d02dfbd6e2e1fb4f3a7589b604fe168b0b843",
+      "wrapOutputSha256": "95359ef56b6b0cf536bd7b53d4a4c0dd92e69fc521f4f69dd3034e3d82ddaedf",
+      "resourceSha256": "c87ad3d8abccb041dbd0eb549789d0d994bd7ba5e414706c52f26777f8594293"
+    },
+    "Small-Medium": {
+      "sourceSha256": "64607b38a14716cd73b69099271feba368ad35a2c5372bd59693e265f23d3064",
+      "targetSha256": "935620903a55fbb4af0c04e91b361b3d1f08a4749da1f13e9a1df6a98d4ba0a9",
+      "wrapOutputSha256": "7e8b7c4a77190ad2d26247d87e489d56ffa960274a22d993a4da8351eef86100",
+      "resourceSha256": "77557bd09eddde2f1b86a1537bf1af42acf3a976ef84c33b000645c7ef2f5039"
+    },
+    "Small-Large": {
+      "sourceSha256": "955ddfe37a4fa14c141f298d76b138982a00a837a03436aae404652e3035173a",
+      "targetSha256": "d12efd24a6740b5cfb09d3d764b6a2cf8d05af0b23c622176a8eab774f7b41f1",
+      "wrapOutputSha256": "696e60b33bc3bd63619e01ea32889c1a414636cd8556c4ce16c74ef0a51c9465",
+      "resourceSha256": "c840a6cd8d9f8fd21f2b03da336e7e641f0b51c1a01dae63807121e0185087ac"
+    },
+    "Medium-Medium": {
+      "sourceSha256": "2185aef16e091793d72922270b78d94e3adbacd366b4cf29227f84881de4a099",
+      "targetSha256": "2e03deb6e34e456ad6fc11cf0b60e281e5f5e1c624172bede0bee25f1c16c9c3",
+      "wrapOutputSha256": "88d238f817b7d7ce46b2b2a60f606b62f77c190f9e01a160828fdae6f8d338f2",
+      "resourceSha256": "de1fe8fbffb5d8c06e2714212fb5a52ce1dc8baa49632ed86989d748c06f7700"
+    },
+    "Medium-Large": {
+      "sourceSha256": "fc53c5189fb9414216ceca13b02cb4b000414e47f5e53d140cd58cd6d8b75b02",
+      "targetSha256": "b7752923adc8d594deb7bb3fca5d5408c83e0f27e39221170530c4075beaaea0",
+      "wrapOutputSha256": "76e254e3085d4575f7bac89ad7f9a413cdaff5244dde3cc36d02507f220a9e65",
+      "resourceSha256": "bc538c601ad985d4fea9ebe25d2679802f6c1b779142376efabb71146a407001"
+    },
+    "Large-Medium": {
+      "sourceSha256": "f6df4a27f9d1667dc41945dd92659adcb5a7d7d05e86873dd3dc2c9fe7087291",
+      "targetSha256": "ac604e3530700d363cf14c63c32fedf9ab43abb69f8d71d34764d7209363d65f",
+      "wrapOutputSha256": "504c9c5a9d78da1fcf9277135e9eae4a449c3d0f85565d96a5c1671190b5417a",
+      "resourceSha256": "dc13b4ac0862a4c54afdd46df3363e66e21f00b4065911948fdf081c2c0a2701"
+    },
+    "Large-Large": {
+      "sourceSha256": "9fc3cc8d9adf21d0f56434d2de1f02b90cf04377d1626525533e53e0c9e450f5",
+      "targetSha256": "73ad71bb72b1483a4951a200c131fe8e5a6e22a8f99fc1c22c135ba7dbe978e2",
+      "wrapOutputSha256": "ea77d3255c6f18ca14f38f6ff4790b8542dabd415cb9474cb193fc4330d1fc77",
+      "resourceSha256": "beb1aee7ca6ba097cca4a8b4e3dfa5761edae8d85c712a98a90d5bf23ba63ef1"
+    }
+  }
+}

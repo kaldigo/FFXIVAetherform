@@ -58,15 +58,26 @@ def addresses(triangles, points):
     return np.asarray(faces), np.asarray(weights), np.asarray(nearest)
 
 
-def bake(reference, top, legs, output):
+def bake(reference, top, legs, output, shared_map=None):
     with np.load(reference) as data:
         rest, wrapped, faces = (data[k] for k in ('rest', 'vertices', 'faces'))
     skin = [skin_triangles(p) for p in (top, legs)]
     host, bary, nearest = addresses(np.concatenate(skin), wrapped)
     with gzip.open(output, 'wb') as f:
-        f.write(struct.pack('<4s4i', b'AFW2', len(rest), len(faces), len(skin[0]), len(skin[1])))
-        f.write(np.asarray(rest, '<f8').tobytes())
-        f.write(np.asarray(faces, '<i4').tobytes())
+        if shared_map is None:
+            f.write(struct.pack('<4s4i', b'AFW2', len(rest), len(faces), len(skin[0]), len(skin[1])))
+            f.write(np.asarray(rest, '<f8').tobytes())
+            f.write(np.asarray(faces, '<i4').tobytes())
+        else:
+            with gzip.open(shared_map, 'rb') as base:
+                header = struct.unpack('<4s4i', base.read(20))
+                if header != (b'AFW2', len(rest), len(faces), len(skin[0]), len(skin[1])):
+                    raise ValueError('Wrap topology dimensions differ from the shared reference')
+                for array, dtype in [(rest, '<f8'), (faces, '<i4')]:
+                    actual = np.asarray(array, dtype).tobytes()
+                    if base.read(len(actual)) != actual:
+                        raise ValueError('Wrap rest positions or face order differ from the shared reference')
+            f.write(struct.pack('<4s3i', b'AFS1', len(rest), len(skin[0]), len(skin[1])))
         f.write(np.asarray(host, '<i4').tobytes())
         f.write(np.asarray(bary, '<f4').tobytes())
         f.write(np.asarray((wrapped-nearest) / 1000, '<f4').tobytes())
@@ -76,4 +87,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('reference', 'top', 'legs', 'output'):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--shared-map", type=Path, help="Bake an independent size solve against the shared vanilla topology")
     bake(**vars(parser.parse_args()))

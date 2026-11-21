@@ -86,9 +86,36 @@ internal sealed class NativeMorph
     private static readonly Lazy<Reference> Atlas = new(() => new());
     private readonly Vector3[] delta;
 
-    internal NativeMorph(Dictionary<string,byte[]> bodies)
+    private sealed record SizeBinding(int[] Hosts, Vector3[] Weights, Vector3[] Residual);
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SizeBinding> Sizes = new();
+
+    private static SizeBinding LoadSize(string key)
     {
         var map = Atlas.Value;
+        if (key == "Small-Medium") return new(map.Hosts, map.Weights, map.Residual);
+        using var stream = typeof(NativeMorph).Assembly.GetManifestResourceStream($"Aetherform.WrapSizes.{key}.gz")
+            ?? throw new InvalidDataException($"Missing independent Wrap for {key}.");
+        using var gzip = new GZipStream(stream, CompressionMode.Decompress);
+        using var reader = new BinaryReader(gzip);
+        if (!reader.ReadBytes(4).AsSpan().SequenceEqual("AFS1"u8) || reader.ReadInt32() != map.Rest.Length ||
+            reader.ReadInt32() != map.Upper || reader.ReadInt32() != map.Lower)
+            throw new InvalidDataException($"Incompatible Wrap for {key}.");
+        var hosts = Enumerable.Range(0,map.Rest.Length).Select(_ => reader.ReadInt32()).ToArray();
+        Vector3[] Vectors() => Enumerable.Range(0,hosts.Length)
+            .Select(_ => new Vector3(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle())).ToArray();
+        return new(hosts,Vectors(),Vectors());
+    }
+
+    internal NativeMorph(Dictionary<string,byte[]> bodies) : this(bodies,"Small","Medium - B") { }
+
+    internal NativeMorph(Dictionary<string,byte[]> bodies, string chestOption, string legOption)
+    {
+        var map = Atlas.Value;
+        var chest = chestOption.Split(" - ")[^1];
+        var leg = legOption.Split(" - ").FirstOrDefault(s => s is "Large" or "Medium");
+        if (chest is not ("XS" or "Small" or "Medium" or "Large") || leg == null)
+            throw new InvalidDataException($"Unknown AF wrap sizes: {chestOption}, {legOption}.");
+        var size = Sizes.GetOrAdd($"{chest}-{leg}",LoadSize);
         var corners = new List<Vector3>(3*(map.Upper+map.Lower));
         foreach (var slot in new[]{"_top","_dwn"})
         {
@@ -102,9 +129,9 @@ internal sealed class NativeMorph
         delta = new Vector3[map.Rest.Length];
         for (int i=0;i<delta.Length;i++)
         {
-            int t=3*map.Hosts[i];
-            var w=map.Weights[i];
-            delta[i]=corners[t]*w.X+corners[t+1]*w.Y+corners[t+2]*w.Z+map.Residual[i]-map.Rest[i].ModelUnits();
+            int t=3*size.Hosts[i];
+            var w=size.Weights[i];
+            delta[i]=corners[t]*w.X+corners[t+1]*w.Y+corners[t+2]*w.Z+size.Residual[i]-map.Rest[i].ModelUnits();
         }
     }
 

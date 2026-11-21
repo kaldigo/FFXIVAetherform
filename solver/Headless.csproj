@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="SkinRoutes/*.gz" LogicalName="Aetherform.skinroutes.%(Filename).gz" />
+    <EmbeddedResource Include="WrapSizes/*.gz" LogicalName="Aetherform.WrapSizes.%(Filename).gz" />
     <EmbeddedResource Include="NativeMorph.map.gz" LogicalName="Aetherform.NativeMorph.map.gz" />
     <EmbeddedResource Include="VanillaAF.map.gz" LogicalName="Aetherform.VanillaAF.map.gz" />
     <Reference Include="Proteus" HintPath="../vendor/proteus/lib/Proteus.dll" />
