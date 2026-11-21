@@ -7,7 +7,8 @@ namespace Aetherform.Geometry;
 internal sealed class CutSkinAssembly
 {
     internal sealed record Knot(Vector3 PositionMm, NativeSkinChart.Influence[] Weights);
-    internal sealed record Assembly(SkinCutJoins.Result Cut, Dictionary<int,Knot> Knots);
+    internal sealed record Corner(NativeSkinChart.Payload Skin,GarmentSkinField.Sample Carrier);
+    internal sealed record Assembly(SkinCutJoins.Result Cut, Dictionary<int,Knot> Knots, Corner[] Corners);
 
     internal static Assembly Prepare(byte[] original, byte[] morphed, NativeSkinChart target)
     {
@@ -48,6 +49,30 @@ internal sealed class CutSkinAssembly
             }
             else knots.Add(k.Variable,new(p,target.Evaluate(k.Face,k.Target).Weights));
         }
-        return new(surface,knots);
+        var field=new GarmentSkinField(target,registered);
+        var cornersOut=new Corner[3*surface.Triangles.Count];
+        for(int i=0;i<surface.Triangles.Count;i++)
+        {
+            var cut=surface.Triangles[i];
+            var coordinates=cut.Barycentric.Polygon;
+            for(int j=0;j<3;j++)
+            {
+                var p=coordinates[j];
+                var skin=target.Evaluate(cut.Face,p);
+                var carrier=field.At(cut,p);
+                cornersOut[3*i+j]=new(skin with { PositionMm=skin.PositionMm+carrier.OffsetMm },carrier);
+            }
+        }
+        foreach(var (variable,corners) in surface.Joins)
+        {
+            var knot=knots[variable];
+            foreach(var corner in corners)
+            {
+                int index=3*corner.Triangle+corner.Index;
+                var existing=cornersOut[index];
+                cornersOut[index]=existing with { Skin=existing.Skin with { PositionMm=knot.PositionMm,Weights=knot.Weights } };
+            }
+        }
+        return new(surface,knots,cornersOut);
     }
 }

@@ -79,7 +79,7 @@ internal sealed class SkinRoutes
                 int sh=src.SubmeshStart+16*i,start=BitConverter.ToInt32(morphed,sh);
                 if(first+row.First>=start && first+row.First<start+BitConverter.ToInt32(morphed,sh+4)) {domain=i;break;}
             }
-            results.Add(new(m,row.First,domain,v,mapped,new(coords[0],coords[1],coords[2]),addresses));
+            results.Add(new(m,row.First,domain,v,mapped,new(coords[0],coords[1],coords[2]),addresses,new(row.Corners[0].Source,row.Corners[1].Source,row.Corners[2].Source)));
         }
         return results;
     }

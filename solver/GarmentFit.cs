@@ -58,7 +58,7 @@ public static class GarmentFit
         {
             var morphed = new NativeMorph(bodies).Apply(garment);
             result = ClothSubdivision.Apply(garment, morphed, slot, stockBody, fittedBodies, classification);
-            result = RefitCore.MatchSkinToBody(result, originals[slot], targets.Values.ToArray(), uv, false, log);
+            result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot]);
         }
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);

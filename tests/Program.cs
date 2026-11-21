@@ -190,6 +190,7 @@ var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())
 {
     var game = File.ReadAllBytes(test.GetProperty("model").GetString()!);
+    LodWriterCheck.Run(solver.DeclaringType!.Assembly,game);
     var slot = test.GetProperty("slot").GetString()!;
     var body = test.GetProperty("originals").Deserialize<Dictionary<string,string>>()!;
     var targets = test.GetProperty("targets").Deserialize<Dictionary<string,string>>()!;

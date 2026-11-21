@@ -7,7 +7,7 @@ namespace Aetherform.Geometry;
 internal static class GarmentSkin
 {
     internal sealed record Face(int Mesh,int First,int Domain,int[] Vertices,Vector3[] Position,Triangle UV,
-        SkinRegistration.Address[] Address);
+        SkinRegistration.Address[] Address,Triangle SourceBarycentric);
     internal static List<Face> Register(byte[] garment,NativeSkinChart target,SkinRoutes? retained)
     {
         if(retained!=null) return retained.Register(garment,target);
@@ -80,7 +80,7 @@ internal static class GarmentSkin
                     int sh=src.SubmeshStart+16*sub,start=BitConverter.ToInt32(garment,sh);
                     if(first+i>=start && first+i<start+BitConverter.ToInt32(garment,sh+4)) {domain=sub;break;}
                 }
-                faces.Add(new(mid,i,domain,v,v.Select(id=>positions[id]).ToArray(),mapped,aa));
+                faces.Add(new(mid,i,domain,v,v.Select(id=>positions[id]).ToArray(),mapped,aa,new(new(0,0),new(1,0),new(0,1))));
             }
         }
         return faces;

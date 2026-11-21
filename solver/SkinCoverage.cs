@@ -59,6 +59,16 @@ internal static class SkinCoverage
         return polygon;
     }
 
+    private static bool Contains(List<Point> polygon,Point point)
+    {
+        int side=Math.Sign(Area(polygon));
+        for(int i=0;i<polygon.Count;i++)
+        {
+            var edge=polygon[(i+1)%polygon.Count]-polygon[i];
+            if(side*edge.Cross(point-polygon[i]) < -1e-14*Math.Sqrt(edge.X*edge.X+edge.Y*edge.Y)) return false;
+        }
+        return true;
+    }
     private static IEnumerable<List<Point>> Difference(List<Point> polygon,List<Point> old)
     {
         int side=Math.Sign(Area(old));
@@ -127,7 +137,7 @@ internal static class SkinCoverage
             var target=native[face];
             double whole=Math.Abs(target.SignedArea), total=pieces.Sum(p=>Math.Abs(Area(p)));
             if(total>whole*(1+1e-7)) throw new InvalidDataException($"Overlapping AF cut on face {face}.");
-            if(Math.Abs(total-whole)<=whole*1e-7)
+            if(Math.Abs(total-whole)<=whole*1e-7 && target.Polygon.All(corner=>pieces.Any(piece=>Contains(piece,corner))))
             {
                 result.Add(new(face,new(new(0,0),new(1,0),new(0,1)),domain));
                 continue;

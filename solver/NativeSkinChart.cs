@@ -6,6 +6,7 @@ namespace Aetherform.Geometry;
 
 internal sealed class NativeSkinChart
 {
+    internal readonly int Mesh;
     internal readonly Triangle[] Cutting;
     internal readonly Triangle[] Render;
     internal readonly int[] PhysicalCorners;
@@ -49,6 +50,7 @@ internal sealed class NativeSkinChart
         var src=SecondSkinWriter.Parse(body);
         int mesh=Enumerable.Range(src.Lod0MeshIndex,src.Lod0MeshCount)
             .Single(i=>src.MatNames[BitConverter.ToUInt16(body,src.MeshStart+36*i+8)].EndsWith("_bibo.mtrl",StringComparison.OrdinalIgnoreCase));
+        Mesh=mesh;
         int h=src.MeshStart+36*mesh, count=BitConverter.ToUInt16(body,h);
         var fields=src.Decls[mesh];
         var p=fields.First(e=>e.Usage==0); var n=fields.First(e=>e.Usage==3);
