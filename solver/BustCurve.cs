@@ -47,7 +47,12 @@ internal static class BustCurve
             var n=normals[seed];var ex=Vector3.Cross(Vector3.UnitY,n);
             if(ex.LengthSquared()<.01f)continue;
             ex=Vector3.Normalize(ex);var ey=Vector3.Cross(n,ex);
-            var centre=centres[seed];var system=new double[6,7];var verts=new HashSet<int>();
+            // Keep the entire support disk on one breast when fitting an inward-facing panel.
+            // A quadratic spanning the medial valley can open the overlap between cups.
+            var centre=centres[seed];
+            float lateralRadius=27*MathF.Sqrt(ex.X*ex.X+ey.X*ey.X);
+            if(centre.X*n.X<0 && Math.Abs(centre.X)<=lateralRadius)continue;
+            var system=new double[6,7];var verts=new HashSet<int>();
             var octants=new bool[8];
             for(int f=0;f<parents.Length;f++)
             {

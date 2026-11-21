@@ -26,9 +26,24 @@ internal static class MorphContinuity
         }
         if(suspects.Count==0)return;
         var edits=new Dictionary<Vector3,Vector3>();var samples=fields.ToArray();
+        // Closely spaced vertices on overlapping seam allowances can have the same
+        // displacement even when only one is adjacent to the steep edge.
+        (int,int,int) Cell(Vector3 p)=>((int)MathF.Floor(p.X/32),(int)MathF.Floor(p.Y/32),(int)MathF.Floor(p.Z/32));
+        var bins=samples.ToLookup(e=>Cell(e.Key));
+        IEnumerable<KeyValuePair<Vector3,Vector3>> Nearby(Vector3 p)
+        {
+            var (x,y,z)=Cell(p);
+            for(int i=x-1;i<=x+1;i++)for(int j=y-1;j<=y+1;j++)for(int k=z-1;k<=z+1;k++)
+                foreach(var entry in bins[(i,j,k)])yield return entry;
+        }
+        var seeds=suspects.ToArray();
+        foreach(var seed in seeds)
+            foreach(var entry in Nearby(seed))
+                if(Vector3.DistanceSquared(seed,entry.Key)<25 && Vector3.DistanceSquared(fields[seed],entry.Value)<16)
+                    suspects.Add(entry.Key);
         foreach(var p in suspects)
         {
-            var neighbours=samples.Where(e=>Vector3.DistanceSquared(e.Key,p)<32*32 && Vector3.DistanceSquared(e.Key,p)>5*5).ToArray();
+            var neighbours=Nearby(p).Where(e=>Vector3.DistanceSquared(e.Key,p)<32*32 && Vector3.DistanceSquared(e.Key,p)>5*5).ToArray();
             if(neighbours.Length<4)continue;
             float Median(Func<Vector3,float> axis)=>neighbours.Select(e=>axis(e.Value)).Order().ElementAt(neighbours.Length/2);
             var typical=new Vector3(Median(v=>v.X),Median(v=>v.Y),Median(v=>v.Z));
