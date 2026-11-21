@@ -84,6 +84,8 @@ internal sealed class NativeMorph
     }
 
     private static readonly Lazy<Reference> Atlas = new(() => new());
+    private static readonly Lazy<ClearanceSurface> SourceBody = new(()=>new(Atlas.Value.Corners.Select(i=>Atlas.Value.Rest[i].ModelUnits()*1000).ToArray()));
+    internal static ClearanceSurface VanillaSurface => SourceBody.Value;
     private readonly Vector3[] delta;
 
     private sealed record SizeBinding(int[] Hosts, Vector3[] Weights, Vector3[] Residual);

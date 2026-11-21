@@ -11,11 +11,16 @@ internal static class GarmentSkinWriter
         var src=SecondSkinWriter.Parse(morphed);
         var meshes=Enumerable.Range(src.Lod0MeshIndex,src.Lod0MeshCount)
             .Where(m=>SecondSkinWriter.IsBodySkinMaterial(src.MatNames[BitConverter.ToUInt16(morphed,src.MeshStart+36*m+8)])).ToArray();
-        if(meshes.Length==0) return cloth;
+        if(meshes.Length==0)
+        {
+            ClothAttachments.Apply(original,cloth,origins,classification);
+            return cloth;
+        }
         var chart=new NativeSkinChart(body);
         var assembly=CutSkinAssembly.Prepare(original,morphed,chart);
         var topology=SkinDisplacement.Apply(chart,assembly,morphed,classification);
         cloth=GarmentClearance.Apply(original,morphed,cloth,assembly,origins,classification,topology);
+        ClothAttachments.Apply(original,cloth,origins,classification);
         var ids=Enumerable.Range(0,assembly.Cut.Triangles.Count)
             .ToLookup(i=>assembly.Corners[3*i].Carrier.Source.Mesh);
         var target=SecondSkinWriter.Parse(body);

@@ -46,6 +46,7 @@ public static class GarmentFit
             var ends = KeepEnds.Read(slot, model, garment) ?? throw new InvalidDataException("Unreadable limb weights.");
             var plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
             result = RefitCore.MatchSkinToBody(plan.Model, originals[slot], targets.Values.ToArray(), uv, false, log);
+            if(slot=="_glv") GloveSkinContact.Apply(garment,result);
         }
         else
         {
@@ -53,7 +54,14 @@ public static class GarmentFit
             morphed=GarmentSupport.Apply(garment,morphed,classification);
             var origins = new Dictionary<int,ClothSubdivision.Origins>();
             result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins);
-            try
+            PanelPeaks.Apply(garment,morphed,result,classification,NativeMorph.VanillaSurface,origins);
+            if(classification?.PreserveSkinCut == true)
+            {
+                // Keep the original shared boundary and its skinning while converting to the AF material and UV layout.
+                ClothAttachments.Apply(garment,result,origins,classification);
+                result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
+            }
+            else try
             {
                 result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],origins,classification);
             }

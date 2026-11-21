@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Vanilla top and leg refits now use independent Faceform wraps for XS, Small, Medium and Large chests with Medium or Large legs.")
+                Changelog="Preserve Faire Joi skin joins and flower spacing, reduce morph-induced peaks on close-fitting cloth, and keep Signifer glove tattoos against the skin.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
