@@ -93,11 +93,17 @@ internal static class ClothJoinWriter
                 double[] w=[1-p.X-p.Y,p.X,p.Y];
                 foreach(var (name,map) in shapeMaps)
                 {
-                    var shift=Vector3.Zero;
+                    var shift=Vector3.Zero;int[] alt=[v[0],v[1],v[2]];bool changed=false;
                     for(int k=0;k<3;k++)
-                        if(map.TryGetValue(i+k,out var replacement)) shift+=(float)w[k]*(pos[replacement]-pos[v[k]]);
-                    if(shift==Vector3.Zero) continue;
-                    ushort key=Intern(format.Encode(i/3,p,skin with {PositionMm=skin.PositionMm+shift},byName,false));
+                        if(w[k]>0 && map.TryGetValue(i+k,out var replacement))
+                        {
+                            alt[k]=replacement;changed=true;
+                            shift+=(float)w[k]*(pos[replacement]-pos[v[k]]);
+                        }
+                    if(!changed) continue;
+                    var activeWeights=skin.Weights;
+                    if(!known) activeWeights=weights[alt[primary]];
+                    ushort key=Intern(format.Encode(i/3,p,skin with {PositionMm=skin.PositionMm+shift,Weights=activeWeights},byName,false,alt));
                     if(key!=index) changes[name].Add((checked((ushort)output.Count),key));
                 }
                 output.Add(index);

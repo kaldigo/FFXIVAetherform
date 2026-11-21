@@ -15,19 +15,12 @@ public static class GarmentFit
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
         var bodies = new Dictionary<string,byte[]>();
-        var stockBody = new List<BodySurface>();
-        var fittedBodies = new List<BodySurface>();
         foreach (var (part, path) in targets)
         {
             var target = File.ReadAllBytes(path);
             if (part == "_dwn") ApplyLegShapes(target, legOptions);
             var vanilla = File.ReadAllBytes(originals[part]);
             bodies[part] = target;
-            if (slot is ("_top" or "_dwn") && ModelPartReader.Read(vanilla) is {} sourceBody)
-            {
-                stockBody.Add(BodySurface.OfBodyWorn(sourceBody,.025f));
-                fittedBodies.Add(BodySurface.OfBodyWorn(ModelPartReader.Read(target)!, .025f));
-            }
             if (slot is "_glv" or "_sho")
             {
                 var refusal = BodyRetarget.BuildPair(part, vanilla, target, part, false, null, null, uv, out var pair);
@@ -57,8 +50,9 @@ public static class GarmentFit
         else
         {
             var morphed = new NativeMorph(bodies).Apply(garment);
+            morphed=GarmentSupport.Apply(garment,morphed,classification);
             var origins = new Dictionary<int,ClothSubdivision.Origins>();
-            result = ClothSubdivision.Apply(garment, morphed, slot, stockBody, fittedBodies, classification, origins);
+            result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins);
             try
             {
                 result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],origins,classification);

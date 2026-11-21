@@ -189,6 +189,7 @@ var log = DispatchProxy.Create(solver.GetParameters()[^1].ParameterType, typeof(
 var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())
 {
+    System.Collections.IDictionary? expectedKnots=null;
     var game = File.ReadAllBytes(test.GetProperty("model").GetString()!);
     LodWriterCheck.Run(solver.DeclaringType!.Assembly,game);
     var slot = test.GetProperty("slot").GetString()!;
@@ -216,10 +217,12 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
             var registered=(System.Collections.ICollection)register.Invoke(null,[native,chart,asm.GetType("Aetherform.Geometry.SkinRoutes",true)!.GetMethod("For",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[game])])!;
             var prepared=asm.GetType("Aetherform.Geometry.CutSkinAssembly",true)!.GetMethod("Prepare",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[game,native,chart])!;
             var knots=(System.Collections.IDictionary)prepared.GetType().GetProperty("Knots")!.GetValue(prepared)!;
+            expectedKnots=knots;
             Console.WriteLine($"{test.GetProperty("model").GetString()}: {registered.Count} registered skin faces, {knots.Count} cloth knots.");
         }
     }
     var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log])!;
+    if(expectedKnots!=null) LodWriterCheck.CheckJoins(solver.DeclaringType!.Assembly,result,expectedKnots);
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");
     var hash = Convert.ToHexString(SHA256.HashData(result));

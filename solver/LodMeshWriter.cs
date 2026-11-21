@@ -109,14 +109,46 @@ internal static class LodMeshWriter
             }
             else shapeValues.Write(mdl,valueTable+4*I(mdl,sh+8),4*I(mdl,sh+4));
         }
-        int delta=checked((int)shapeValues.Length-4*values);
+        int mapAt=valueTable+4*values,mapBytes=I(mdl,mapAt);
+        using var addedMap=new MemoryStream();using var bm=new BinaryWriter(addedMap,System.Text.Encoding.UTF8,true);
+        foreach(var d in draws.Where(d=>d.Declaration!=null))
+        {
+            int h=src.MeshStart+36*d.Mesh,sub=U(mdl,h+10),palette=U(mdl,h+14);
+            int Find(int usage)=>Enumerable.Range(0,17).Select(i=>8*i).First(i=>d.Declaration![i]!=255 && d.Declaration[i+3]==usage);
+            int we=Find(1),be=Find(2);byte[] decl=d.Declaration!;
+            int width=decl[we+2]==17?8:4;
+            for(int j=0;j<d.Submeshes.Length;j++)
+            {
+                var (start,count)=d.Submeshes[j];var sh=src.SubmeshStart+16*(sub+j);
+                if(U(mdl,sh+14)==0) continue;
+                var verticesUsed=d.Indices.AsSpan(start,count).ToArray().ToHashSet();
+                foreach(var variant in d.Shapes.Values)
+                    foreach(var (slot,v) in variant) if(slot>=start && slot<start+count) verticesUsed.Add(v);
+                var bones=new SortedSet<ushort>();
+                foreach(ushort v in verticesUsed)
+                for(int k=0;k<width;k++)
+                {
+                    int ws=decl[we],bs=decl[be];
+                    if(d.Streams[ws][v*d.Strides![ws]+decl[we+1]+k]==0) continue;
+                    int local=d.Streams[bs][v*d.Strides[bs]+decl[be+1]+k];
+                    bones.Add(src.BoneTables[palette][local]);
+                }
+                U(meta,sh+12,(mapBytes+(int)addedMap.Length)/2);
+                U(meta,sh+14,bones.Count);
+                foreach(ushort b in bones) bm.Write(b);
+            }
+        }
+        I(meta,mapAt,mapBytes+(int)addedMap.Length);
+        int delta=checked((int)(shapeValues.Length+addedMap.Length)-4*values);
         U(meta,src.Mh+20,checked((int)shapeValues.Length/4));
         I(meta,8,I(meta,8)+delta);
         ModelAttributeWriter.ShiftOffsets(meta,src.LodStart,delta,-1);
         using var output=new MemoryStream(checked(mdl.Length+dv+di+delta));
         output.Write(meta,0,valueTable);shapeValues.WriteTo(output);
         int tail=valueTable+4*values;
-        output.Write(meta,tail,ve-tail);vertices.WriteTo(output);
+        int endMap=mapAt+4+mapBytes;
+        output.Write(meta,tail,endMap-tail);addedMap.WriteTo(output);
+        output.Write(meta,endMap,ve-endMap);vertices.WriteTo(output);
         output.Write(meta,ve,ie-ve);indices.WriteTo(output);
         output.Write(meta,ie,meta.Length-ie);
         return output.ToArray();

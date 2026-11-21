@@ -41,7 +41,7 @@ internal sealed class SkinVertexFormat
         }
     }
 
-    internal byte[] Encode(int face,Point bary,NativeSkinChart.Payload skin,Dictionary<string,byte> palette,bool nativeSkin=true)
+    internal byte[] Encode(int face,Point bary,NativeSkinChart.Payload skin,Dictionary<string,byte> palette,bool nativeSkin=true,int[]? variant=null)
     {
         var row=new byte[bases[2]+Strides[2]];
         Span<float> val=stackalloc float[4],acc=stackalloc float[4];
@@ -60,7 +60,7 @@ internal sealed class SkinVertexFormat
             acc.Clear();double largest=-1;float sign=1;
             for(int k=0;k<3;k++)
             {
-                int v=renderCorners[3*face+k];
+                int v=variant==null?renderCorners[3*face+k]:variant[k];
                 SecondSkinWriter.ReadTyped(body,stream+v*body[header+32+e.Stream]+e.Offset,e.Type,val);
                 for(int c=0;c<4;c++) acc[c]+=(float)w[k]*val[c];
                 if(w[k]>largest){sign=val[3];largest=w[k];}

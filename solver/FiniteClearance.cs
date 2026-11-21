@@ -7,7 +7,7 @@ namespace Aetherform.Geometry;
 internal static class FiniteClearance
 {
     private sealed record Witness(int A,int B,int C,Vector3 Bary,Vector3 Normal,float Upper);
-    private static List<Vector3> Clip(List<Vector3> input,float[] line)
+    internal static List<Vector3> Clip(List<Vector3> input,float[] line)
     {
         var output=new List<Vector3>(6);
         for(int i=0;i<input.Count;i++)

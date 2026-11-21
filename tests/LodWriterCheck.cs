@@ -1,7 +1,55 @@
 using System.Reflection;
+using System.Collections;
+using System.Numerics;
 
 internal static class LodWriterCheck
 {
+    internal static void CheckJoins(Assembly assembly,byte[] mdl,IDictionary expected)
+    {
+        var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;
+        var model=type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[mdl])!;
+        object Field(string name)=>model.GetType().GetField(name)!.GetValue(model)!;
+        int Get(string name)=>Convert.ToInt32(Field(name));
+        var points=new Dictionary<(int X,int Y,int Z,string Weights),int>();
+        var names=(List<string>)Field("MatNames");var bones=(string[])Field("BoneNames");
+        var palettes=(ushort[][])Field("BoneTables");
+        int U(int at)=>BitConverter.ToUInt16(mdl,at);
+        int I(int at)=>BitConverter.ToInt32(mdl,at);
+        for(int m=Get("Lod0MeshIndex");m<Get("Lod0MeshIndex")+Get("Lod0MeshCount");m++)
+        {
+            int h=Get("MeshStart")+36*m;int flags=names[U(h+8)].EndsWith("_bibo.mtrl")?1:2;
+            int decl=0x44+136*m;
+            int Find(byte usage)=>Enumerable.Range(0,17).Select(i=>decl+8*i).First(i=>mdl[i]!=255 && mdl[i+3]==usage);
+            int p=Find(0),w=Find(1),b=Find(2),palette=U(h+14);int width=mdl[w+2]==17?8:4;
+            int At(int e,int v)=>Get("Vb")+I(h+20+4*mdl[e])+v*mdl[h+32+mdl[e]]+mdl[e+1];
+            var used=Enumerable.Range(0,I(h+4)).Select(i=>U(Get("Ib")+2*(I(h+16)+i))).Distinct();
+            foreach(int v in used)
+            {
+                int pp=At(p,v);float F(int k)=>mdl[p+2]==14?(float)BitConverter.ToHalf(mdl,pp+2*k):BitConverter.ToSingle(mdl,pp+4*k);
+                var q=1000*new Vector3(F(0),F(1),F(2));
+                var packed=new SortedDictionary<string,int>(StringComparer.Ordinal);
+                for(int j=0;j<width;j++)
+                {
+                    int weight=mdl[At(w,v)+j];if(weight==0) continue;
+                    string bone=bones[palettes[palette][mdl[At(b,v)+j]]];packed[bone]=packed.GetValueOrDefault(bone)+weight;
+                }
+                var key=((int)MathF.Round(q.X*1000),(int)MathF.Round(q.Y*1000),(int)MathF.Round(q.Z*1000),string.Join('|',packed.Select(p=>p.Key+"="+p.Value)));
+                points[key]=points.GetValueOrDefault(key)|flags;
+            }
+        }
+        foreach(DictionaryEntry item in expected)
+        {
+            var knot=item.Value!;
+            var pos=(Vector3)knot.GetType().GetProperty("PositionMm")!.GetValue(knot)!;
+            var influences=(IEnumerable)knot.GetType().GetProperty("Weights")!.GetValue(knot)!;
+            string weights=string.Join('|',influences.Cast<object>().Select(p=>p.GetType().GetProperty("Bone")!.GetValue(p)+"="+p.GetType().GetProperty("Weight")!.GetValue(p)));
+            int x=(int)MathF.Round(pos.X*1000),y=(int)MathF.Round(pos.Y*1000),z=(int)MathF.Round(pos.Z*1000);
+            bool found=false;
+            for(int a=-1;a<=1;a++)for(int b=-1;b<=1;b++)for(int c=-1;c<=1;c++)
+                found|=points.GetValueOrDefault((x+a,y+b,z+c,weights))==3;
+            if(!found) throw new Exception($"Emitted cloth and AF skin disagree at shared knot {item.Key} ({pos}) using {weights}.");
+        }
+    }
     internal static void Run(Assembly solver,byte[] mdl)
     {
         var writer=solver.GetType("Aetherform.Geometry.LodMeshWriter",true)!;
