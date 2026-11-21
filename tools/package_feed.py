@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Close-fitting tops now follow the surrounding breast curve. Smooth seams keep consistent shading across UV splits, including the front of the Etoile Longcoat. Affected cached refits regenerate on equip.")
+                Changelog="Adds 284 garment classifications covering the current Aetherloom and Steward priority lists, including reviewed cloth panels and carried details. Affected cached refits refresh on equip.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
