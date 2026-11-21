@@ -24,13 +24,14 @@ internal sealed class EquipRefits : IDisposable
     private readonly IObjectTable objects;
     private readonly IPluginLog log;
     private readonly string cache;
+    private readonly ClassificationStore classifications;
     private readonly string gameVersion;
     private string manifestPath = "";
     private DateTime manifestTime;
     private Dictionary<string,Dictionary<string,string>> choices = [];
     private readonly Dictionary<string,string> defaults = [];
     private readonly HashSet<string> failures = [];
-    private sealed record Item(string Path, string Output, string Slot, ushort Race);
+    private sealed record Item(string Path, string Output, string Slot, ushort Race, ClassificationStore.Entry Classification);
     private sealed record Snapshot(Guid Collection, string Root, string Shape, Dictionary<string,string> Targets,
         string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key);
     private sealed record Fit(Item Item, string Model);
@@ -47,6 +48,7 @@ internal sealed class EquipRefits : IDisposable
     public EquipRefits(IDalamudPluginInterface pi, IDataManager data, IObjectTable objects, IPluginLog log, string config)
     {
         this.pi = pi; this.data = data; this.objects = objects; this.log = log;
+        classifications = new(config, message => log.Warning("{Message}",message));
         cache = VanillaToAetherform.Cache(config);
         var versionFile = Path.Combine(data.GameData.DataPath.FullName, "..", "ffxivgame.ver");
         gameVersion = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : data.GameData.DataPath.LastWriteTimeUtc.Ticks.ToString();
@@ -79,6 +81,7 @@ internal sealed class EquipRefits : IDisposable
     public void Update(string root, string? body, HashSet<Guid> disabled,int configuredPriority)
     {
         priority=configuredPriority;
+        classifications.Poll();
         var current = Capture(root, body, disabled, out bool drawing);
         if (drawing) return;
         if (job != null && jobKey != current?.Key) jobStop?.Cancel();
@@ -141,7 +144,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (string end in new[] { "_glv", "_sho" })
             if (!Supplied(end)) targets.Remove(end);
         var legs = effective.Item3.GetValueOrDefault("Leg Options")?.Order().ToArray() ?? [];
-        var shape = Hash("Vanilla/Aetherform/v1|" + gameVersion + "|" + string.Join('|', legs) + "|" +
+        var shape = Hash("Vanilla/Aetherform/native-skin-v2|" + gameVersion + "|" + string.Join('|', legs) + "|" +
             string.Join('|', targets.Select(t => t.Key + t.Value + File.GetLastWriteTimeUtc(t.Value).Ticks)));
         var preset=string.Join(" / ",labels.Concat(legs));
         if(SyncOptions(root,id,shape,preset)) { drawing=true; return null; }
@@ -175,19 +178,19 @@ internal sealed class EquipRefits : IDisposable
             if (race != 101 && race is not (201 or 401 or 601 or 801 or 1001 or 1401 or 1601 or 1801)) continue;
             string output = race == 101 ? path.Replace("/c0101e", "/c0201e") : path;
             if (output != path && !Vanilla(id, output)) continue;
-            pieces[output] = new(path, output, slot, race);
+            pieces[output] = new(path, output, slot, race, classifications.Get(path));
         }
         var items = pieces.Values.OrderBy(x => x.Path).ToArray();
-        var key = Hash(id + "|" + root + "|" + shape + "|" + string.Join('|',items.Select(i => i.Path)));
+        var key = Hash(id + "|" + root + "|" + shape + "|" + string.Join('|',items.Select(i => i.Path + i.Classification.Revision)));
         return new(id, root, shape, targets, legs, body, string.Join(" / ",labels.Concat(legs)), items, key);
     }
 
-    private static string Option(string preset,string shape,string slot) =>
-        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Cloth Detail 5", "_dwn" => " Cloth Detail 5", _ => "" });
+    private static string Option(string preset,string shape,string slot,string revision) =>
+        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Wrap Fit " + revision[..Math.Min(12,revision.Length)], "_dwn" => " Wrap Fit " + revision[..Math.Min(12,revision.Length)], _ => "" });
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
     {
-        string key=root+"|"+collection+"|"+shape+"|"+priority;
+        string key=root+"|"+collection+"|"+shape+"|"+priority+"|"+classifications.Generation;
         if(key==synced) return false;
         bool changed=false;
         var mods=pi.GetIpcSubscriber<Dictionary<string,string>>("Penumbra.GetModList").InvokeFunc();
@@ -202,7 +205,7 @@ internal sealed class EquipRefits : IDisposable
             string? selected=null;
             if(shape!=null && meta.TryGetProperty("Groups",out var groups))
             {
-                string option=Option(preset!,shape,dir[^4..]);
+                string option=Option(preset!,shape,dir[^4..],classifications.Get(dir["AF Vanilla Fit ".Length..]+".mdl").Revision);
                 foreach (var group in groups.EnumerateArray())
                 {
                     if (group.GetProperty("Name").GetString() != "Fit") continue;
@@ -264,7 +267,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "sewn-top-v3|", "_dwn" => "sewn-bottom-v3|", _ => "" }) + request.Shape + item.Path);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v3|", "_dwn" => "sewn-bottom-v3|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
@@ -283,7 +286,7 @@ internal sealed class EquipRefits : IDisposable
                     string rig = item.Race == 101 ? "0201" : item.Race.ToString("D4");
                     var result = GarmentFit.Generate(Game(item.Path), item.Slot, item.Race, originals, selected, request.LegOptions,
                         item.Race == 201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
-                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), log);
+                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), item.Classification.Data, log);
                     token.ThrowIfCancellationRequested();
                     Write(output,result);
                 }
@@ -336,7 +339,7 @@ internal sealed class EquipRefits : IDisposable
             using (var prior = JsonDocument.Parse(File.ReadAllBytes(meta)))
                 if (prior.RootElement.GetProperty("Identifier").GetGuid() != identity)
                     throw new IOException("The refit directory belongs to another mod: " + dir);
-            string option=Option(snapshot.Preset,snapshot.Shape,item.Slot);
+            string option=Option(snapshot.Preset,snapshot.Shape,item.Slot,item.Classification.Revision);
             string bodyFolder = Path.Combine(snapshot.Root,snapshot.BodyDirectory);
             var targets = Required(item.Slot).Where(snapshot.Targets.ContainsKey)
                 .ToDictionary(k => k,k => Path.GetRelativePath(bodyFolder,snapshot.Targets[k]));

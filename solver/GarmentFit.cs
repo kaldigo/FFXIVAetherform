@@ -9,28 +9,24 @@ public static class GarmentFit
 {
     public static byte[] Generate(byte[] garment, string slot, ushort modelRace,
         IReadOnlyDictionary<string,string> originals, IReadOnlyDictionary<string,string> targets,
-        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, IPluginLog log)
+        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, GarmentClassification? classification, IPluginLog log)
     {
+        if (classification != null && !classification.Matches(garment)) classification = null;
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
         var bodies = new Dictionary<string,byte[]>();
-        var stockBody = new List<BodySurface>();
-        var fittedBodies = new List<BodySurface>();
         foreach (var (part, path) in targets)
         {
             var target = File.ReadAllBytes(path);
             if (part == "_dwn") ApplyLegShapes(target, legOptions);
             var vanilla = File.ReadAllBytes(originals[part]);
             bodies[part] = target;
-            if (slot is ("_top" or "_dwn") && ModelPartReader.Read(vanilla) is {} sourceBody)
+            if (slot is "_glv" or "_sho")
             {
-                stockBody.Add(BodySurface.OfBodyWorn(sourceBody,.025f));
-                fittedBodies.Add(BodySurface.OfBodyWorn(ModelPartReader.Read(target)!, .025f));
+                var refusal = BodyRetarget.BuildPair(part, vanilla, target, part, false, null, null, uv, out var pair);
+                if (refusal != null) throw new InvalidDataException(refusal);
+                pairs[part] = pair;
             }
-            var refusal = BodyRetarget.BuildPair(part, vanilla, target,
-                part, false, null, null, uv, out var pair);
-            if (refusal != null) throw new InvalidDataException(refusal);
-            pairs[part] = pair;
         }
 
         RacialModelBake.Wearer? wearer = null;
@@ -44,32 +40,28 @@ public static class GarmentFit
             garment = route.Into(garment, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         }
         var model = ModelPartReader.Read(garment) ?? throw new InvalidDataException("Unreadable garment.");
-        bool attached = (slot is "_top" or "_dwn") && WrapGarment.HasSkinJoin(garment);
-        BodyRetarget.Planned plan;
+        byte[] result;
         if (slot is "_glv" or "_sho")
         {
             var ends = KeepEnds.Read(slot, model, garment) ?? throw new InvalidDataException("Unreadable limb weights.");
-            plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
+            var plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
+            result = RefitCore.MatchSkinToBody(plan.Model, originals[slot], targets.Values.ToArray(), uv, false, log);
         }
         else
         {
-            var other = slot == "_top" ? "_dwn" : "_top";
-            var shape = pairs[other] with { ShapeOnly = true };
-            plan = RefitCore.PlanRefit(model, garment, [pairs[slot], shape], slot, !attached, true, out _,
-                transfer: slot == "_top" ? YabTransfer.LongCoatEnvelope : YabTransfer.Envelope,
-                strength: slot == "_top" ? .75f : 1f);
-        }
-        var result = attached ? plan.Model : RefitCore.MatchSkinToBody(plan.Model, originals[slot],
-            targets.Values.ToArray(), uv, false, log);
-        if (slot is "_top" or "_dwn")
-        {
-            var bindings = new GarmentBindings(bindingDirectory,slot,garment);
-            var cleared = (byte[])result.Clone();
-            var map = VanillaAfWrap.Get(bodies);
-            WrapGarment.Apply(garment,result,map,bindings,slot,attached,stockBody,fittedBodies);
-            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot,stockBody,fittedBodies);
-            if (attached) result = RefitCore.MatchSkinToBody(result, originals[slot], targets.Values.ToArray(), uv, false, log);
-            bindings.Save();
+            var morphed = new NativeMorph(bodies).Apply(garment);
+            morphed=GarmentSupport.Apply(garment,morphed,classification);
+            var origins = new Dictionary<int,ClothSubdivision.Origins>();
+            result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins);
+            try
+            {
+                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],origins,classification);
+            }
+            catch (SkinRegistrationException ex) when (SkinRoutes.For(garment)==null)
+            {
+                log.Warning("[Aetherform] Preserved morphed garment skin for {Slot}. AF registration needs review: {Reason}",slot,ex.Message);
+                result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
+            }
         }
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
