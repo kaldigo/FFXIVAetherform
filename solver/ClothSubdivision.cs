@@ -23,35 +23,21 @@ internal static class ClothSubdivision
         internal int Stride(int s)=>Data[Header+32+s];
         internal int Stream(int s)=>src.Vb+I(Data,Header+20+4*s);
         private ushort[] Palette => src.BoneTables[U(Data,Header+14)];
-        internal void RestoreWeights(int vertex,Layout original)
+        internal Dictionary<string,double> Weights(int vertex)
         {
-            var w=Fields.FirstOrDefault(e=>e.Usage==1); var j=Fields.FirstOrDefault(e=>e.Usage==2);
-            var sw=original.Fields.FirstOrDefault(e=>e.Usage==1); var sj=original.Fields.FirstOrDefault(e=>e.Usage==2);
-            if(w.Usage!=1 || j.Usage!=2 || sw.Usage!=1 || sj.Usage!=2 ||
-                !PanelStreams.Supported(w) || !PanelStreams.Supported(j) ||
-                !PanelStreams.Supported(sw) || !PanelStreams.Supported(sj)) return;
-            int Offset(Layout layout,E field)=>layout.Stream(field.Stream)+field.Offset+vertex*layout.Stride(field.Stream);
-            int width=w.Type==17?8:4, sourceWidth=sw.Type==17?8:4;
-            if((j.Type==17)!=(w.Type==17) || (sj.Type==17)!=(sw.Type==17)) return;
-            Span<byte> weights=stackalloc byte[8]; Span<byte> bones=stackalloc byte[8];
-            weights.Clear(); bones.Clear();
-            int count=0;
-            for(int k=0;k<sourceWidth;k++)
+            var weights=Fields.First(e=>e.Usage==1);
+            var bones=Fields.First(e=>e.Usage==2);
+            var result=new Dictionary<string,double>();
+            for(int k=0;k<(weights.Type==17?8:4);k++)
             {
-                byte strength=original.Data[Offset(original,sw)+k];
+                int strength=Data[Stream(weights.Stream)+weights.Offset+vertex*Stride(weights.Stream)+k];
                 if(strength==0) continue;
-                int local=original.Data[Offset(original,sj)+k];
-                if(local>=original.Palette.Length || count==width) return;
-                string name=original.BoneName(local);
-                int mapped=Array.FindIndex(Palette,b=>src.BoneNames[b]==name);
-                if(mapped is <0 or >255) return;
-                weights[count]=strength; bones[count++]=(byte)mapped;
+                int bone=Data[Stream(bones.Stream)+bones.Offset+vertex*Stride(bones.Stream)+k];
+                string name=src.BoneNames[Palette[bone]];
+                result[name]=result.GetValueOrDefault(name)+strength/255.0;
             }
-            if(count==0) return;
-            weights[..width].CopyTo(Data.AsSpan(Offset(this,w)));
-            bones[..width].CopyTo(Data.AsSpan(Offset(this,j)));
+            return result;
         }
-        private string BoneName(int local)=>src.BoneNames[Palette[local]];
         internal ushort[] Indices()
         {
             var values=new ushort[I(Data,Header+4)];
@@ -70,6 +56,65 @@ internal static class ClothSubdivision
             }
             return points;
         }
+    }
+
+    private readonly record struct Rim(int Mesh,int A,int B,Vector3 Start,Vector3 End);
+    private static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source)
+    {
+        var skin=new List<Rim>(); var cloth=new List<Rim>();
+        var layouts=new Dictionary<int,Layout>();
+        for(int m=source.Lod0MeshIndex;m<source.Lod0MeshIndex+source.Lod0MeshCount;m++)
+        {
+            var layout=new Layout(source,m);layouts.Add(m,layout);
+            var edges=new Dictionary<(int,int),int>();
+            bool isSkin=SecondSkinWriter.IsBodySkinMaterial(layout.Material);
+            var positions=layout.Positions(layout.Count);
+            var ix=layout.Indices();
+            for(int j=0;j<ix.Length;j+=3)
+            {
+                if(Vector3.Cross(positions[ix[j+1]]-positions[ix[j]],positions[ix[j+2]]-positions[ix[j]]).LengthSquared()<=4e-28f) continue;
+                for(int k=0;k<3;k++)
+                {
+                    int a=ix[j+k],b=ix[j+(k+1)%3];
+                    var key=(Math.Min(a,b),Math.Max(a,b));edges[key]=edges.GetValueOrDefault(key)+1;
+                }
+            }
+            foreach(var ((a,b),count) in edges)
+                if(count==1) (isSkin?skin:cloth).Add(new(m,a,b,positions[a],positions[b]));
+        }
+        var weights=new Dictionary<(int,int),Dictionary<string,double>>();
+        Dictionary<string,double> At(int m,int i)
+        {
+            if(!weights.TryGetValue((m,i),out var w)) weights[(m,i)]=w=layouts[m].Weights(i);
+            return w;
+        }
+        bool SameMotion(int a,int b,Vector3 p,int c,int d,Vector3 q)
+        {
+            var lhs=At(a,b);var rhs=At(c,d);
+            foreach(string name in lhs.Keys.Union(rhs.Keys))
+            {
+                double u=lhs.GetValueOrDefault(name),v=rhs.GetValueOrDefault(name);
+                var diff=1000*((float)u*p-(float)v*q);
+                if(diff.LengthSquared()+(u-v)*(u-v)>4e-6) return false;
+            }
+            return true;
+        }
+        var result=new Dictionary<(int,int,int),Rim>();
+        foreach(var edge in cloth)
+        {
+            var matches=new List<Rim>();
+            foreach(var candidate in skin)
+            {
+                var s=candidate;
+                if(Vector3.DistanceSquared(edge.Start,s.End)<Vector3.DistanceSquared(edge.Start,s.Start))
+                    s=new(s.Mesh,s.B,s.A,s.End,s.Start);
+                if(Vector3.DistanceSquared(edge.Start,s.Start)>1e-12f || Vector3.DistanceSquared(edge.End,s.End)>1e-12f) continue;
+                if(SameMotion(edge.Mesh,edge.A,edge.Start,s.Mesh,s.A,s.Start) &&
+                   SameMotion(edge.Mesh,edge.B,edge.End,s.Mesh,s.B,s.End)) matches.Add(s);
+            }
+            if(matches.Count==1) result[(edge.Mesh,edge.A,edge.B)]=matches[0];
+        }
+        return result;
     }
 
     // A welded island carried entirely by one bone is rigid. Keep its authored
@@ -123,64 +168,9 @@ internal static class ClothSubdivision
         if(wrapped[66]!=0 || dst.Lod0MeshCount==0) return wrapped;
 
         static Vector3 SeamKey(Vector3 p)=>Vector3.Round(p*100000);
-        var skinEdges=new HashSet<(Vector3,Vector3)>();
-        for(int m=dst.Lod0MeshIndex;m<dst.Lod0MeshIndex+dst.Lod0MeshCount;m++)
-        {
-            var mesh=new Layout(dst,m);
-            if(!SecondSkinWriter.IsBodySkinMaterial(mesh.Material)) continue;
-            var points=mesh.Positions(mesh.Count).Select(SeamKey).ToArray();
-            var corners=mesh.Indices();
-            for(int j=0;j+2<corners.Length;j+=3)
-                for(int k=0;k<3;k++)
-                {
-                    var a=points[corners[j+k]]; var b=points[corners[j+(k+1)%3]];
-                    skinEdges.Add((a,b));
-                }
-        }
-        var joins=new Dictionary<(Vector3,Vector3),(Vector3,Vector3)>();
-        for(int i=0;i<Math.Min(src.Lod0MeshCount,dst.Lod0MeshCount);i++)
-        {
-            var originalSkin=new Layout(src,src.Lod0MeshIndex+i);
-            var fittedSkin=new Layout(dst,dst.Lod0MeshIndex+i);
-            if(!SecondSkinWriter.IsBodySkinMaterial(originalSkin.Material) || originalSkin.Material!=fittedSkin.Material) continue;
-            var corners=originalSkin.Indices();
-            if(!corners.SequenceEqual(fittedSkin.Indices())) continue;
-            var rest=originalSkin.Positions(originalSkin.Count);
-            var fit=fittedSkin.Positions(fittedSkin.Count);
-            for(int j=0;j<corners.Length;j+=3)
-            for(int k=0;k<3;k++)
-            {
-                int a=corners[j+k],b=corners[j+(k+1)%3];
-                joins[(SeamKey(rest[a]),SeamKey(rest[b]))]=(fit[a],fit[b]);
-            }
-        }
-        if(slot=="_dwn" && joins.Count>0)
-        {
-            // Restore the original common weights at sewn endpoints after the body
-            // transfer. Bone palettes can have different orders on cloth and skin.
-            var sewnPoints=new HashSet<Vector3>();
-            var matching=new List<(Layout Original,Layout Fit,Vector3[] Points,ushort[] Corners)>();
-            for(int i=0;i<Math.Min(src.Lod0MeshCount,dst.Lod0MeshCount);i++)
-            {
-                var original=new Layout(src,src.Lod0MeshIndex+i);
-                var fit=new Layout(dst,dst.Lod0MeshIndex+i);
-                var corners=original.Indices();
-                if(original.Material!=fit.Material || !corners.SequenceEqual(fit.Indices())) continue;
-                var points=original.Positions(original.Count).Select(SeamKey).ToArray();
-                matching.Add((original,fit,points,corners));
-                if(SecondSkinWriter.IsBodySkinMaterial(original.Material)) continue;
-                for(int j=0;j<corners.Length;j+=3)
-                for(int k=0;k<3;k++)
-                {
-                    var a=points[corners[j+k]]; var b=points[corners[j+(k+1)%3]];
-                    if(!joins.ContainsKey((a,b)) && !joins.ContainsKey((b,a))) continue;
-                    sewnPoints.Add(a); sewnPoints.Add(b);
-                }
-            }
-            foreach(var (original,fit,points,corners) in matching)
-                foreach(int index in corners.Distinct())
-                    if(sewnPoints.Contains(points[index])) fit.RestoreWeights(index,original);
-        }
+        var joins=IdentifyJoins(src);
+        var seamPositions=joins.Values.Select(s=>s.Mesh).Distinct().ToDictionary(i=>i,
+            i=>{var mesh=new Layout(dst,dst.Lod0MeshIndex+i-src.Lod0MeshIndex);return mesh.Positions(mesh.Count);});
         var metadata=(byte[])wrapped.Clone();
         using var vertices=new MemoryStream(); using var indices=new MemoryStream();
         int vbSize=I(wrapped,40),ibSize=I(wrapped,52);
@@ -207,13 +197,11 @@ internal static class ClothSubdivision
             var fixedRim=new Dictionary<int,Vector3>();
             int Mid(int a,int b)
             {
-                if(slot=="_dwn")
+                if(joins.TryGetValue((src.Lod0MeshIndex+ordinal,Math.Min(a,b),Math.Max(a,b)),out var rim))
                 {
-                    var ra=SeamKey(rest[a]); var rb=SeamKey(rest[b]);
-                    if(joins.TryGetValue((ra,rb),out var seam))
-                    { fixedRim[a]=seam.Item1; fixedRim[b]=seam.Item2; return -1; }
-                    if(joins.TryGetValue((rb,ra),out seam))
-                    { fixedRim[a]=seam.Item2; fixedRim[b]=seam.Item1; return -1; }
+                    var points=seamPositions[rim.Mesh];
+                    fixedRim[Math.Min(a,b)]=points[rim.A]; fixedRim[Math.Max(a,b)]=points[rim.B];
+                    return -1;
                 }
                 var key=(Math.Min(a,b),Math.Max(a,b));
                 if(!edges.TryGetValue(key,out int j)) edges.Add(key,j=mesh.Count+edges.Count);
@@ -244,17 +232,6 @@ internal static class ClothSubdivision
                 rest[mid]=(rest[a]+rest[b])/2;
                 donor[mid]=(donor[a]+donor[b])/2;
                 var linear=(fit[a]+fit[b])/2;
-                var ka=SeamKey(fit[a]); var kb=SeamKey(fit[b]);
-                var ra=SeamKey(rest[a]); var rb=SeamKey(rest[b]);
-                if(joins.TryGetValue((ra,rb),out var seam) || joins.TryGetValue((rb,ra),out seam))
-                {
-                    if(!joins.ContainsKey((ra,rb))) seam=(seam.Item2,seam.Item1);
-                    pinned[a]=seam.Item1; pinned[b]=seam.Item2; pinned[mid]=(seam.Item1+seam.Item2)/2;
-                }
-                else if(skinEdges.Contains((ka,kb)) || skinEdges.Contains((kb,ka)))
-                {
-                    pinned[a]=fit[a]; pinned[b]=fit[b]; pinned[mid]=linear;
-                }
                 fit[mid]=linear;
                 PanelStreams.Midpoint(streams,strides,fields,a,b,mid);
             }
@@ -326,6 +303,7 @@ internal static class ClothSubdivision
                         if(count>0) foreach(int i in copies) fit[i]+=sum/count;
                     }
                 }
+                foreach(var (vertex,position) in pinned) fit[vertex]=position;
                 PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
                 var pe=fields.First(e=>e.Usage==0);
                 foreach(int i in faces.Distinct())

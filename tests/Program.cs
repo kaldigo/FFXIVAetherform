@@ -4,6 +4,28 @@ using System.Runtime.Loader;
 using System.Text.Json;
 using System.Security.Cryptography;
 
+if(args.Length==3 && args[0]=="--visible-clearance")
+{
+    using var input=new BinaryReader(File.OpenRead(args[1]));
+    using var expected=new BinaryReader(File.OpenRead(args[2]));
+    Vector3 ReadPoint(BinaryReader r)=>new(r.ReadSingle(),r.ReadSingle(),r.ReadSingle());
+    Vector3[] ReadFaces()=>Enumerable.Range(0,3*input.ReadInt32()).Select(_=>ReadPoint(input)).ToArray();
+    var cloth=ReadFaces();var skin=ReadFaces();var carrier=ReadFaces();
+    var result=Aetherform.Geometry.VisibleClearance.Inspect(cloth,skin,carrier,input.ReadBytes(cloth.Length/3).Select(b=>b!=0).ToArray());
+    for(int i=0;i<result.Samples.Length;i++)
+        if(expected.ReadInt32()!=result.Samples[i] || ReadPoint(expected)!=result.Directions[i])
+            throw new Exception($"Visibility differs at cloth face {i}.");
+    Console.WriteLine($"{cloth.Length/3} cloth faces match the offline visibility raster.");
+    return;
+}
+
+if(args.Length>0 && args[0]=="--skin-coverage")
+{
+    foreach(string file in args.Skip(1))
+        SkinCoverageCheck.Run(file);
+    return;
+}
+
 // Run the shipped headless entry point against locally owned game and mod files.
 var selected = new Dictionary<string,string> { ["_top"] = @"D:\mods\AF\chest.mdl", ["_dwn"] = @"D:\mods\AF\legs.mdl" };
 foreach (string part in selected.Keys)
@@ -184,6 +206,17 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
         var mapper = Activator.CreateInstance(morphType,BindingFlags.Instance|BindingFlags.NonPublic,null,[reference],null)!;
         var native = (byte[])morphType.GetMethod("Apply",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(mapper,[game])!;
         File.WriteAllBytes(nativeOutput.GetString()!,native);
+        if (test.TryGetProperty("auditSkinRegistration",out var enabled) && enabled.GetBoolean())
+        {
+            var asm=solver.DeclaringType.Assembly;
+            var chart=Activator.CreateInstance(asm.GetType("Aetherform.Geometry.NativeSkinChart",true)!,
+                BindingFlags.Instance|BindingFlags.NonPublic,null,[reference[slot]],null)!;
+            var register=asm.GetType("Aetherform.Geometry.GarmentSkin",true)!.GetMethod("Register",BindingFlags.Static|BindingFlags.NonPublic)!;
+            var registered=(System.Collections.ICollection)register.Invoke(null,[native,chart,asm.GetType("Aetherform.Geometry.SkinRoutes",true)!.GetMethod("For",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[game])])!;
+            var prepared=asm.GetType("Aetherform.Geometry.CutSkinAssembly",true)!.GetMethod("Prepare",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[game,native,chart])!;
+            var knots=(System.Collections.IDictionary)prepared.GetType().GetProperty("Knots")!.GetValue(prepared)!;
+            Console.WriteLine($"{test.GetProperty("model").GetString()}: {registered.Count} registered skin faces, {knots.Count} cloth knots.");
+        }
     }
     var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log])!;
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
