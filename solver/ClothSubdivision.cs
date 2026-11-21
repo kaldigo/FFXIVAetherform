@@ -58,8 +58,8 @@ internal static class ClothSubdivision
         }
     }
 
-    private readonly record struct Rim(int Mesh,int A,int B,Vector3 Start,Vector3 End);
-    private static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source)
+    internal readonly record struct Rim(int Mesh,int A,int B,Vector3 Start,Vector3 End);
+    internal static Dictionary<(int Mesh,int A,int B),Rim> IdentifyJoins(Source source)
     {
         var skin=new List<Rim>(); var cloth=new List<Rim>();
         var layouts=new Dictionary<int,Layout>();
@@ -160,14 +160,15 @@ internal static class ClothSubdivision
         return [c,a,ab, c,ab,bc, bc,ab,b];
     }
 
-    internal static byte[] Apply(byte[] vanilla,byte[] wrapped,string slot,List<BodySurface> stockBody,List<BodySurface> fittedBodies,GarmentClassification? classification)
+    internal sealed record Origins(Vector3[] Positions,int[] Parents);
+    internal static byte[] Apply(byte[] vanilla,byte[] wrapped,string slot,List<BodySurface> stockBody,List<BodySurface> fittedBodies,GarmentClassification? classification,Dictionary<int,Origins>? origins=null)
     {
         var src=SecondSkinWriter.Parse(vanilla); var dst=SecondSkinWriter.Parse(wrapped);
 
         // Keep edge-geometry streams intact on models with a separate edge LOD.
         if(wrapped[66]!=0 || dst.Lod0MeshCount==0) return wrapped;
 
-        static Vector3 SeamKey(Vector3 p)=>Vector3.Round(p*100000);
+
         var joins=IdentifyJoins(src);
         var seamPositions=joins.Values.Select(s=>s.Mesh).Distinct().ToDictionary(i=>i,
             i=>{var mesh=new Layout(dst,dst.Lod0MeshIndex+i-src.Lod0MeshIndex);return mesh.Positions(mesh.Count);});
@@ -257,52 +258,17 @@ internal static class ClothSubdivision
             interior.ExceptWith(exterior);
             foreach(var ((a,b),mid) in edges)
                 if(interior.Contains(mid)) fit[mid]=(fit[a]+fit[b])/2;
+            if(origins!=null)
+            {
+                var parents=new int[newIndices.Count/3];
+                for(int j=0;j<old.Length/3;j++) Array.Fill(parents,j,starts[j]/3,(starts[j+1]-starts[j])/3);
+                origins[dst.Lod0MeshIndex+ordinal]=new(rest,parents);
+            }
             var faces=panel.ToArray();
             emit.Add(()=>
             {
                 foreach(var ((a,b),mid) in edges)
                     if(interior.Contains(mid) && !pinned.ContainsKey(mid)) fit[mid]=(fit[a]+fit[b])/2;
-                // The shared cage can move a close panel away from its body after
-                // the first projection. Restore the authored contact before encoding.
-                foreach(int vertex in clearanceFaces.Distinct())
-                    if(!pinned.ContainsKey(vertex))
-                        fit[vertex]=WrapGarment.Contact(rest[vertex],fit[vertex],stockBody,fittedBodies,minimumOnly:slot=="_top");
-                // Vertex clearance alone misses a chord cutting across curved skin.
-                // Restore deficits measured on the actual emitted triangles.
-                var welded=faces.Distinct().GroupBy(i=>SeamKey(rest[i]))
-                    .Where(group=>!group.Any(pinned.ContainsKey)).Select(group=>group.ToArray()).ToArray();
-                var pushes=new Vector3[fit.Length];
-                var samples=new int[fit.Length];
-                for(int pass=0;pass<4;pass++)
-                {
-                    Array.Clear(pushes); Array.Clear(samples);
-                    bool changed=false;
-                    for(int j=0;j<clearanceFaces.Count;j+=3)
-                    {
-                        int a=clearanceFaces[j],b=clearanceFaces[j+1],c=clearanceFaces[j+2];
-                        int free=3-(pinned.ContainsKey(a)?1:0)-(pinned.ContainsKey(b)?1:0)-(pinned.ContainsKey(c)?1:0);
-                        if(free==0) continue;
-                        var source=(rest[a]+rest[b]+rest[c])/3;
-                        var center=(fit[a]+fit[b]+fit[c])/3;
-                        var push=WrapGarment.Contact(source,center,stockBody,fittedBodies,true)-center;
-                        if(push.LengthSquared()<1e-8f) continue;
-                        push*=3f/free;
-                        void Accumulate(int i)
-                        {
-                            if(pinned.ContainsKey(i)) return;
-                            pushes[i]+=push; samples[i]++;
-                        }
-                        Accumulate(a); Accumulate(b); Accumulate(c);
-                        changed=true;
-                    }
-                    if(!changed) break;
-                    foreach(var copies in welded)
-                    {
-                        var sum=Vector3.Zero; int count=0;
-                        foreach(int i in copies) { sum+=pushes[i]; count+=samples[i]; }
-                        if(count>0) foreach(int i in copies) fit[i]+=sum/count;
-                    }
-                }
                 foreach(var (vertex,position) in pinned) fit[vertex]=position;
                 PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
                 var pe=fields.First(e=>e.Usage==0);

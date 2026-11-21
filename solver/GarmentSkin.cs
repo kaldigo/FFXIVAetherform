@@ -4,6 +4,7 @@ using static Aetherform.Geometry.SkinCoverage;
 
 namespace Aetherform.Geometry;
 
+internal sealed class SkinRegistrationException(string message) : Exception(message);
 internal static class GarmentSkin
 {
     internal sealed record Face(int Mesh,int First,int Domain,int[] Vertices,Vector3[] Position,Triangle UV,
@@ -50,7 +51,7 @@ internal static class GarmentSkin
                 foreach(int i in group)
                 {
                     lookupUV[i]=new(lookupUV[i].X-shift,lookupUV[i].Y);
-                    if(lookupUV[i].X>2+1e-7) throw new InvalidDataException("Unqualified repeating skin tile.");
+                    if(lookupUV[i].X>2+1e-7) throw new SkinRegistrationException("Unqualified repeating skin tile.");
                 }
             }
             int Side(int i)=>Math.Sign(positions[ix[i]].X+positions[ix[i+1]].X+positions[ix[i+2]].X);
@@ -65,15 +66,39 @@ internal static class GarmentSkin
             var addresses=new Dictionary<(int,int),SkinRegistration.Address>();
             for(int i=0;i<keys.Length;i++)
                 addresses.Add(keys[i],registration.Locate(positions[keys[i].Vertex],charts[i],seams[i]));
-            int subStart=BitConverter.ToUInt16(garment,h+10),subCount=BitConverter.ToUInt16(garment,h+12);
+            // Repair only the chart addresses incident to a folded source face.
+            // Keep the same connected AF island and preserve seam membership.
+            var keyIds=keys.Select((key,i)=>(key,i)).ToDictionary(t=>t.key,t=>t.i);
+            var visited=new HashSet<(int,int)>();
+            while(true)
+            {
+                var affected=new HashSet<(int,int)>();
+                foreach(int i in active)
+                {
+                    int side=Side(i);
+                    var a=ix[i];var b=ix[i+1];var c=ix[i+2];
+                    var mapped=new Triangle(addresses[(a,side)].Chart,addresses[(b,side)].Chart,addresses[(c,side)].Chart);
+                    var authored=new Triangle(lookupUV[a],lookupUV[b],lookupUV[c]);
+                    if(mapped.SignedArea*authored.SignedArea*side>0) continue;
+                    affected.Add((a,side));affected.Add((b,side));affected.Add((c,side));
+                }
+                affected.ExceptWith(visited);
+                if(affected.Count==0) break;
+                foreach(var key in affected)
+                {
+                    int index=keyIds[key];var old=addresses[key];
+                    addresses[key]=registration.NearestChart(old.Face,charts[index],seams[index]);
+                    visited.Add(key);
+                }
+            }            int subStart=BitConverter.ToUInt16(garment,h+10),subCount=BitConverter.ToUInt16(garment,h+12);
             foreach(int i in active)
             {
-                int side=Side(i);if(side==0) throw new InvalidDataException("Undefined skin chart side.");
+                int side=Side(i);if(side==0) throw new SkinRegistrationException("Undefined skin chart side.");
                 var v=ix[i..(i+3)];var aa=v.Select(id=>addresses[(id,side)]).ToArray();
                 var mapped=new Triangle(aa[0].Chart,aa[1].Chart,aa[2].Chart);
                 var original=new Triangle(lookupUV[v[0]],lookupUV[v[1]],lookupUV[v[2]]);
                 if(mapped.SignedArea*original.SignedArea*side<=0)
-                    throw new InvalidDataException($"Skin registration folded mesh {mid}, index {i}.");
+                    throw new SkinRegistrationException($"Skin registration folded mesh {mid}, index {i}.");
                 int domain=-1;
                 for(int sub=subStart;sub<subStart+subCount;sub++)
                 {

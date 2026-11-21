@@ -144,7 +144,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (string end in new[] { "_glv", "_sho" })
             if (!Supplied(end)) targets.Remove(end);
         var legs = effective.Item3.GetValueOrDefault("Leg Options")?.Order().ToArray() ?? [];
-        var shape = Hash("Vanilla/Aetherform/v1|" + gameVersion + "|" + string.Join('|', legs) + "|" +
+        var shape = Hash("Vanilla/Aetherform/native-skin-v2|" + gameVersion + "|" + string.Join('|', legs) + "|" +
             string.Join('|', targets.Select(t => t.Key + t.Value + File.GetLastWriteTimeUtc(t.Value).Ticks)));
         var preset=string.Join(" / ",labels.Concat(legs));
         if(SyncOptions(root,id,shape,preset)) { drawing=true; return null; }
@@ -267,7 +267,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "sewn-top-v3|", "_dwn" => "sewn-bottom-v3|", _ => "" }) + request.Shape + item.Path + "|native-wrap-v1|" + item.Classification.Revision);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v3|", "_dwn" => "sewn-bottom-v3|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {

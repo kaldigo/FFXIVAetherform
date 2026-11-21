@@ -7,7 +7,7 @@ namespace Aetherform.Geometry;
 // bone indices remain valid, including those referenced by unedited LODs.
 internal static class SkinDrawBindings
 {
-    internal static byte[] Add(byte[] model,byte[] body,string material,IReadOnlyDictionary<int,string[]> perMesh)
+    internal static byte[] Add(byte[] model,byte[] body,string material,IReadOnlyDictionary<int,string[]> perMesh,IReadOnlySet<int>? skinMeshes=null)
     {
         var src=SecondSkinWriter.Parse(model);
         var native=SecondSkinWriter.Parse(body);
@@ -80,7 +80,7 @@ internal static class SkinDrawBindings
         Int(src.DeclEnd+4,checked((int)src.StrSize+growth+pad));
         Short(src.Mh+12,bones.Count);
         if(mat<0){mat=src.MatCount;Short(src.Mh+10,mat+1);}
-        foreach(int m in perMesh.Keys) Short(src.MeshStart+36*m+8,mat);
+        foreach(int m in perMesh.Keys.Where(m=>skinMeshes==null || skinMeshes.Contains(m))) Short(src.MeshStart+36*m+8,mat);
         if(v6) Short(src.Mh+44,((int)packed.Length-4*palettes.Count)/2);
         int delta=edits.Sum(e=>e.Bytes.Length-e.Removed);
         Int(8,I(8)+delta);

@@ -57,8 +57,17 @@ public static class GarmentFit
         else
         {
             var morphed = new NativeMorph(bodies).Apply(garment);
-            result = ClothSubdivision.Apply(garment, morphed, slot, stockBody, fittedBodies, classification);
-            result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot]);
+            var origins = new Dictionary<int,ClothSubdivision.Origins>();
+            result = ClothSubdivision.Apply(garment, morphed, slot, stockBody, fittedBodies, classification, origins);
+            try
+            {
+                result = GarmentSkinWriter.Replace(garment, morphed, result, bodies[slot],origins,classification);
+            }
+            catch (SkinRegistrationException ex) when (SkinRoutes.For(garment)==null)
+            {
+                log.Warning("[Aetherform] Preserved morphed garment skin for {Slot}. AF registration needs review: {Reason}",slot,ex.Message);
+                result=RefitCore.MatchSkinToBody(result,originals[slot],targets.Values.ToArray(),uv,false,log);
+            }
         }
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);

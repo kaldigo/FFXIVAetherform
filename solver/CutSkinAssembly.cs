@@ -8,14 +8,14 @@ internal sealed class CutSkinAssembly
 {
     internal sealed record Knot(Vector3 PositionMm, NativeSkinChart.Influence[] Weights);
     internal sealed record Corner(NativeSkinChart.Payload Skin,GarmentSkinField.Sample Carrier);
-    internal sealed record Assembly(SkinCutJoins.Result Cut, Dictionary<int,Knot> Knots, Corner[] Corners);
+    internal sealed record Assembly(SkinCutJoins.Result Cut, Dictionary<int,Knot> Knots, Corner[] Corners,IReadOnlyList<SkinRoutes.ClothKnot> Schedule);
 
     internal static Assembly Prepare(byte[] original, byte[] morphed, NativeSkinChart target)
     {
         var routes = SkinRoutes.For(original);
         var registered = GarmentSkin.Register(morphed,target,routes);
         var coverage = Compile(target.Cutting, registered.Select(f => new Region(f.UV,f.Domain)));
-        var scheduled = routes?.Knots ?? [];
+        var scheduled = routes?.Knots ?? GarmentBoundaryRoutes.Trace(original,target,registered,coverage);
         var samples = scheduled.Select(k => new SkinCutJoins.Sample(k.Face,k.Target,k.Variable)).ToArray();
         var surface = SkinCutJoins.Conform(coverage,target.PhysicalCorners,samples,target.PositionsMm);
         var model = SecondSkinWriter.Parse(morphed);
@@ -73,6 +73,6 @@ internal sealed class CutSkinAssembly
                 cornersOut[index]=existing with { Skin=existing.Skin with { PositionMm=knot.PositionMm,Weights=knot.Weights } };
             }
         }
-        return new(surface,knots,cornersOut);
+        return new(surface,knots,cornersOut,scheduled);
     }
 }

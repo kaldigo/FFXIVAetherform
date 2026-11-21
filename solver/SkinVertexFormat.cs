@@ -12,16 +12,18 @@ internal sealed class SkinVertexFormat
     private readonly E[] fields;
     internal readonly byte[] Declaration,Strides;
     private readonly int[] bases=new int[3],offsets;
-    private readonly NativeSkinChart chart;
+    private readonly int[] renderCorners;
 
-    internal SkinVertexFormat(byte[] body,NativeSkinChart chart)
+    internal SkinVertexFormat(byte[] body,NativeSkinChart chart) : this(body,chart.Mesh,chart.RenderCorners) { }
+
+    internal SkinVertexFormat(byte[] body,int mesh,int[] renderCorners)
     {
-        this.body=body;this.chart=chart;
+        this.body=body;this.renderCorners=renderCorners;
         var model=SecondSkinWriter.Parse(body);
-        header=model.MeshStart+36*chart.Mesh;buffer=model.Vb;
-        Declaration=body.AsSpan(0x44+136*chart.Mesh,136).ToArray();
+        header=model.MeshStart+36*mesh;buffer=model.Vb;
+        Declaration=body.AsSpan(0x44+136*mesh,136).ToArray();
         Strides=body.AsSpan(header+32,4).ToArray();
-        fields=model.Decls[chart.Mesh];
+        fields=model.Decls[mesh];
         offsets=new int[fields.Length];
         // AF cut samples can interpolate influences from all three parent corners.
         for(int s=0;s<3;s++)
@@ -39,7 +41,7 @@ internal sealed class SkinVertexFormat
         }
     }
 
-    internal byte[] Encode(int face,Point bary,NativeSkinChart.Payload skin,Dictionary<string,byte> palette)
+    internal byte[] Encode(int face,Point bary,NativeSkinChart.Payload skin,Dictionary<string,byte> palette,bool nativeSkin=true)
     {
         var row=new byte[bases[2]+Strides[2]];
         Span<float> val=stackalloc float[4],acc=stackalloc float[4];
@@ -58,7 +60,7 @@ internal sealed class SkinVertexFormat
             acc.Clear();double largest=-1;float sign=1;
             for(int k=0;k<3;k++)
             {
-                int v=chart.RenderCorners[3*face+k];
+                int v=renderCorners[3*face+k];
                 SecondSkinWriter.ReadTyped(body,stream+v*body[header+32+e.Stream]+e.Offset,e.Type,val);
                 for(int c=0;c<4;c++) acc[c]+=(float)w[k]*val[c];
                 if(w[k]>largest){sign=val[3];largest=w[k];}
@@ -68,13 +70,13 @@ internal sealed class SkinVertexFormat
             {
                 var n=new Vector3(acc[0],acc[1],acc[2]);
                 if(e.Type==8) n=2*n-Vector3.One;
-                if(e.Usage==3) n=skin.Normal;
+                if(e.Usage==3 && nativeSkin) n=skin.Normal;
                 else if(n.LengthSquared()>1e-12f) n=Vector3.Normalize(n);
                 if(e.Type==8) n=(n+Vector3.One)*.5f;
                 acc[0]=n.X;acc[1]=n.Y;acc[2]=n.Z;
                 if(e.Usage!=3) acc[3]=sign;
             }
-            if(e.Usage==4 && e.UsageIndex==0){acc[0]=(float)skin.RenderUV.X;acc[1]=(float)skin.RenderUV.Y;}
+            if(nativeSkin && e.Usage==4 && e.UsageIndex==0){acc[0]=(float)skin.RenderUV.X;acc[1]=(float)skin.RenderUV.Y;}
             int nc=e.Type switch {0=>1,1 or 13=>2,2=>3,_=>4};
             for(int c=0;c<nc;c++)
             {

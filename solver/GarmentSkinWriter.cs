@@ -6,7 +6,7 @@ namespace Aetherform.Geometry;
 
 internal static class GarmentSkinWriter
 {
-    internal static byte[] Replace(byte[] original,byte[] morphed,byte[] cloth,byte[] body)
+    internal static byte[] Replace(byte[] original,byte[] morphed,byte[] cloth,byte[] body,Dictionary<int,ClothSubdivision.Origins> origins,GarmentClassification? classification)
     {
         var src=SecondSkinWriter.Parse(morphed);
         var meshes=Enumerable.Range(src.Lod0MeshIndex,src.Lod0MeshCount)
@@ -14,13 +14,17 @@ internal static class GarmentSkinWriter
         if(meshes.Length==0) return cloth;
         var chart=new NativeSkinChart(body);
         var assembly=CutSkinAssembly.Prepare(original,morphed,chart);
+        SkinDisplacement.Apply(chart,assembly,morphed,classification);
+        cloth=GarmentClearance.Apply(original,morphed,cloth,assembly,origins,classification);
         var ids=Enumerable.Range(0,assembly.Cut.Triangles.Count)
             .ToLookup(i=>assembly.Corners[3*i].Carrier.Source.Mesh);
         var target=SecondSkinWriter.Parse(body);
         string material=target.MatNames[BitConverter.ToUInt16(body,target.MeshStart+36*chart.Mesh+8)];
         var bones=meshes.ToDictionary(m=>m,m=>ids[m].SelectMany(i=>assembly.Corners.AsSpan(3*i,3).ToArray())
             .SelectMany(c=>c.Skin.Weights).Select(w=>w.Bone).Distinct().ToArray());
-        byte[] rebound=SkinDrawBindings.Add(cloth,body,material,bones);
+        var schedules=assembly.Schedule.GroupBy(k=>k.Mesh).ToArray();
+        foreach(var g in schedules) bones.Add(g.Key,g.SelectMany(k=>assembly.Knots[k.Variable].Weights).Select(w=>w.Bone).Distinct().ToArray());
+        byte[] rebound=SkinDrawBindings.Add(cloth,body,material,bones,meshes.ToHashSet());
         var metadata=SecondSkinWriter.Parse(rebound);
         var format=new SkinVertexFormat(body,chart);
         var draws=new List<LodMeshWriter.Draw>();
@@ -87,6 +91,7 @@ internal static class GarmentSkinWriter
             draws.Add(new(mesh,rows.Count,format.Streams(rows),indices.ToArray(),subs,
                 replacements.ToDictionary(p=>p.Key,p=>p.Value.ToArray()),format.Declaration,format.Strides));
         }
+        foreach(var g in schedules) draws.Add(ClothJoinWriter.Build(morphed,rebound,g.Key,g.ToArray(),assembly));
         return LodMeshWriter.Replace(rebound,draws);
     }
 }

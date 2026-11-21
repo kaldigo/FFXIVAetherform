@@ -54,6 +54,26 @@ internal sealed class SkinRegistration
         });
     }
 
+    internal Address NearestChart(int previous,Point uv,bool seam)
+    {
+        int domain=component[previous];double best=double.PositiveInfinity;Address? selected=null;
+        Point[] basis=[new(0,0),new(1,0),new(0,1)];
+        void Edge(int f,int a,int b)
+        {
+            var poly=skin.Cutting[f].Polygon;
+            var point=Project(uv,poly[a],poly[b],out double frac);
+            double score=Squared(uv,point);
+            if(score<best){best=score;selected=new(f,(1-frac)*basis[a]+frac*basis[b],point);}
+        }
+        if(seam) foreach(var e in rims[domain]) Edge(e.Face,e.A,e.B);
+        else foreach(int f in components[domain])
+        {
+            var t=skin.Cutting[f];var b=t.Barycentric(uv);
+            if(b.X>=0 && b.Y>=0 && b.X+b.Y<=1) return new(f,b,uv);
+            for(int j=0;j<3;j++) Edge(f,j,(j+1)%3);
+        }
+        return selected ?? throw new SkinRegistrationException("No continuous replacement skin chart.");
+    }
     internal Address Locate(Vector3 positionMm,Point sourceUV,bool seam)
     {
         double bestUV=double.PositiveInfinity;int domain=-1;
@@ -69,11 +89,11 @@ internal sealed class SkinRegistration
             bestUV=gap;domain=component[f];
             if(gap==0) break;
         }
-        if(domain<0) throw new InvalidDataException("No AF skin chart for source UV.");
+        if(domain<0) throw new SkinRegistrationException("No AF skin chart for source UV.");
         var candidates=new List<(int Face,Point Bary,double Distance)>();
         if(seam)
         {
-            if(!rims.TryGetValue(domain,out var edges)) throw new InvalidDataException("A source seam maps to a closed AF chart.");
+            if(!rims.TryGetValue(domain,out var edges)) throw new SkinRegistrationException("A source seam maps to a closed AF chart.");
             var distances=edges.Select(e=>
             {
                 var uv=skin.Cutting[e.Face].Polygon;
@@ -110,6 +130,6 @@ internal sealed class SkinRegistration
             double error=Squared(xy,sourceUV);
             if(error<score){score=error;result=new(c.Face,c.Bary,xy);}
         }
-        return result ?? throw new InvalidDataException("AF skin registration produced no finite candidate.");
+        return result ?? throw new SkinRegistrationException("AF skin registration produced no finite candidate.");
     }
 }
