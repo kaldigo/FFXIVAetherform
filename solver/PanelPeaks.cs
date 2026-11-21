@@ -106,6 +106,7 @@ internal static class PanelPeaks
                 }
             }
             foreach(int v in pinned)moves.Remove(v);
+            BustCurve.Apply(original,mapped,mesh,a,draw,lineage.Parents,id,dst,nb,strength,eligible,ring,pinned,moves);
             ModelPanelEdits.Write(fit,target,mesh,draw,moves);
         }
     }

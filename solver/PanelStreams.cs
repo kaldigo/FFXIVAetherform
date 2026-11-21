@@ -23,6 +23,7 @@ internal static class PanelStreams
             from[a]+=n; from[b]+=n; from[c]+=n;
             to[a]+=m; to[b]+=m; to[c]+=m;
         }
+        ShareSmoothFans(streams,strides,fields,before,after,triangles,from,to);
         var frame=fields.Where(e=>e.Usage is 3 or 5 or 6).ToArray();
         Span<float> components=stackalloc float[4];
         foreach(int i in triangles.Distinct())
@@ -45,6 +46,55 @@ internal static class PanelStreams
         }
     }
 
+    // UV and tangent splits may duplicate a smooth vertex. Combine the geometric
+    // fan only across a shared edge that still meets after fitting. Each copy
+    // retains its own tangent frame and its authored handedness.
+    private static void ShareSmoothFans(byte[][] streams,int[] strides,E[] fields,
+        Vector3[] before,Vector3[] after,int[] triangles,Vector3[] from,Vector3[] to)
+    {
+        var normal=fields.FirstOrDefault(f=>f.Usage==3);
+        if(normal.Usage!=3)return;
+        var drawn=triangles.Distinct().ToArray();
+        var positions=new Dictionary<(Vector3,Vector3),int>();
+        var position=new int[before.Length];
+        var shading=new Vector3[before.Length];
+        var groups=Enumerable.Range(0,before.Length).ToArray();
+        Span<float> values=stackalloc float[4];
+        foreach(int v in drawn)
+        {
+            var key=(before[v],after[v]);
+            if(!positions.TryGetValue(key,out int id))positions.Add(key,id=positions.Count);
+            position[v]=id;
+            SecondSkinWriter.ReadTyped(streams[normal.Stream],v*strides[normal.Stream]+normal.Offset,normal.Type,values);
+            shading[v]=new(values[0],values[1],values[2]);
+        }
+        if(positions.Count==drawn.Length)return;
+        int Root(int v)
+        {
+            while(groups[v]!=v){groups[v]=groups[groups[v]];v=groups[v];}
+            return v;
+        }
+        var owners=new Dictionary<(int At,int Other,Vector3 Normal),int>();
+        void Connect(int a,int b)
+        {
+            if(position[a]==position[b])return;
+            var edge=(position[a],position[b],shading[a]);
+            if(owners.TryGetValue(edge,out int other))groups[Root(a)]=Root(other);
+            else owners.Add(edge,a);
+        }
+        for(int f=0;f<triangles.Length;f+=3)
+            for(int j=0;j<3;j++)
+            {
+                int a=triangles[f+j],b=triangles[f+(j+1)%3];
+                Connect(a,b);Connect(b,a);
+            }
+        foreach(int v in drawn)
+        {
+            int root=Root(v);
+            if(root!=v){from[root]+=from[v];to[root]+=to[v];}
+        }
+        foreach(int v in drawn){int root=Root(v);from[v]=from[root];to[v]=to[root];}
+    }
     internal static bool Supported(E e) => e.Usage switch
     {
         1 or 2 => e.Type is 5 or 8 or 17,

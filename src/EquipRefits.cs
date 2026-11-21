@@ -186,7 +186,7 @@ internal sealed class EquipRefits : IDisposable
     }
 
     private static string Option(string preset,string shape,string slot,string revision) =>
-        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Wrap Fit 4 " + revision[..Math.Min(12,revision.Length)], "_dwn" => " Wrap Fit 4 " + revision[..Math.Min(12,revision.Length)], "_glv" => " Skin Contact 1 " + revision[..Math.Min(12,revision.Length)], _ => "" });
+        preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (slot switch { "_top" => " Wrap Fit 6 " + revision[..Math.Min(12,revision.Length)], "_dwn" => " Wrap Fit 5 " + revision[..Math.Min(12,revision.Length)], "_glv" => " Skin Contact 2 " + revision[..Math.Min(12,revision.Length)], _ => "" });
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
     {
@@ -267,7 +267,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items)
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "sewn-top-v6|", "_dwn" => "sewn-bottom-v6|", "_glv" => "skin-contact-glove-v1|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
+            var key = Hash((item.Slot switch { "_top" => "sewn-top-v8|", "_dwn" => "sewn-bottom-v7|", "_glv" => "skin-contact-glove-v2|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Classification.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {
