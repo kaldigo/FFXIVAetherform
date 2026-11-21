@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Fixes mirrored skin texture streaks on retained skin, preserves Yakaku Dogi’s authored skin cuts, and aligns shading with smoothed bust panels.")
+                Changelog="Fixes mirrored skin texture streaks on retained skin, preserves the authored skin cuts on Yakaku Dogi, and aligns shading with smoothed bust panels.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
