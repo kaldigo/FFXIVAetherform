@@ -115,13 +115,13 @@ internal static class ClothSubdivision
         return [c,a,ab, c,ab,bc, bc,ab,b];
     }
 
-    internal static byte[] Apply(byte[] vanilla,byte[] prior,byte[] wrapped,VanillaAfWrap map,GarmentBindings bindings,string slot,List<BodySurface> stockBody,List<BodySurface> fittedBodies)
+    internal static byte[] Apply(byte[] vanilla,byte[] wrapped,string slot,List<BodySurface> stockBody,List<BodySurface> fittedBodies,GarmentClassification? classification)
     {
         var src=SecondSkinWriter.Parse(vanilla); var dst=SecondSkinWriter.Parse(wrapped);
-        var before=SecondSkinWriter.Parse(prior);
+
         // Keep edge-geometry streams intact on models with a separate edge LOD.
         if(wrapped[66]!=0 || dst.Lod0MeshCount==0) return wrapped;
-        var skin=new BodySurface(ModelPartReader.Read(wrapped)!, .025f);
+
         static Vector3 SeamKey(Vector3 p)=>Vector3.Round(p*100000);
         var skinEdges=new HashSet<(Vector3,Vector3)>();
         for(int m=dst.Lod0MeshIndex;m<dst.Lod0MeshIndex+dst.Lod0MeshCount;m++)
@@ -184,7 +184,7 @@ internal static class ClothSubdivision
         var metadata=(byte[])wrapped.Clone();
         using var vertices=new MemoryStream(); using var indices=new MemoryStream();
         int vbSize=I(wrapped,40),ibSize=I(wrapped,52);
-        var panels=new List<GarmentDeformation.Panel>();
+
         var emit=new List<Action>();
         for(int ordinal=0;ordinal<Math.Min(src.Lod0MeshCount,dst.Lod0MeshCount);ordinal++)
         {
@@ -233,7 +233,7 @@ internal static class ClothSubdivision
             if(count>ushort.MaxValue) continue;
             var fit=mesh.Positions(mesh.Count);
             var pinned=new Dictionary<int,Vector3>(fixedRim);
-            var donor=new Layout(before,dst.Lod0MeshIndex+ordinal).Positions(mesh.Count);
+            var donor=(Vector3[])fit.Clone();
             Array.Resize(ref rest,count); Array.Resize(ref fit,count); Array.Resize(ref donor,count);
             var strides=Enumerable.Range(0,3).Select(mesh.Stride).ToArray();
             var streams=strides.Select(s=>new byte[count*s]).ToArray();
@@ -255,10 +255,7 @@ internal static class ClothSubdivision
                 {
                     pinned[a]=fit[a]; pinned[b]=fit[b]; pinned[mid]=linear;
                 }
-                var bound=map.Apply(bindings.Get(rest[mid],false),false);
-                // Carry existing seam corrections (particularly on tight bottoms).
-                var mappedEnds=(map.Apply(bindings.Get(rest[a],false),false)+map.Apply(bindings.Get(rest[b],false),false))/2;
-                fit[mid]=linear+bound-mappedEnds;
+                fit[mid]=linear;
                 PanelStreams.Midpoint(streams,strides,fields,a,b,mid);
             }
             // A source face that bridges through the body is an interior closure.
@@ -271,7 +268,7 @@ internal static class ClothSubdivision
             {
                 int a=old[j],b=old[j+1],c=old[j+2];
                 if(!selected[j/3]) continue;
-                bool inside=GarmentDeformation.SourceDepth((rest[a]+rest[b]+rest[c])/3,stockBody)<-.015f;
+                bool inside=classification?.Closure(ordinal,j/3)==true || GarmentDeformation.SourceDepth((rest[a]+rest[b]+rest[c])/3,stockBody)<-.015f;
                 var set=inside?interior:exterior;
                 for(int corner=starts[j/3];corner<starts[j/3+1];corner++)
                 {
@@ -284,44 +281,6 @@ internal static class ClothSubdivision
             foreach(var ((a,b),mid) in edges)
                 if(interior.Contains(mid)) fit[mid]=(fit[a]+fit[b])/2;
             var faces=panel.ToArray();
-            PanelGeometry.Smooth(rest,fit,faces);
-            PanelGeometry.TorsoReserve(fit,donor,faces,skin,slot=="_top");
-            // The first row of trim follows the authored cross-section of the seam.
-            // Interpolate its motion from the sewn endpoints before the cage relaxes it.
-            if(slot=="_dwn")
-            {
-                var sewn=pinned.Keys.Where(i=>i<mesh.Count).ToHashSet();
-                var nearby=new Dictionary<int,List<int>>();
-                void Carry(int vertex,int anchor)
-                {
-                    if(sewn.Contains(vertex) || !sewn.Contains(anchor) ||
-                       Vector3.DistanceSquared(rest[vertex],rest[anchor])>.04f*.04f) return;
-                    if(!nearby.TryGetValue(vertex,out var anchors)) nearby[vertex]=anchors=[];
-                    anchors.Add(anchor);
-                }
-                foreach(var (a,b) in edges.Keys) { Carry(a,b); Carry(b,a); }
-                foreach(var (vertex,anchors) in nearby)
-                {
-                    // The nearest sewn point owns this row's stand-off. Preserve its
-                    // local offset; averaging motion from distant anchors widens trim.
-                    int anchor=anchors.MinBy(i=>Vector3.DistanceSquared(rest[vertex],rest[i]));
-                    pinned[vertex]=pinned[anchor]+rest[vertex]-rest[anchor];
-                }
-                foreach(var ((a,b),mid) in edges)
-                    if(!pinned.ContainsKey(mid) && pinned.TryGetValue(a,out var pa) && pinned.TryGetValue(b,out var pb))
-                        pinned[mid]=(pa+pb)/2;
-            }
-            {
-                // Both parts can duplicate sewn vertices along UV or shading splits.
-                // Give each copy the same anchor before any clearance pass.
-                foreach(var group in faces.Distinct().GroupBy(i=>SeamKey(rest[i])))
-                {
-                    int anchor=group.FirstOrDefault(fixedRim.ContainsKey,-1);
-                    if(anchor<0) anchor=group.FirstOrDefault(pinned.ContainsKey,-1);
-                    if(anchor>=0) foreach(int i in group) pinned[i]=pinned[anchor];
-                }
-            }
-            panels.Add(new(rest,fit,faces,clearanceFaces.ToArray(),pinned));
             emit.Add(()=>
             {
                 foreach(var ((a,b),mid) in edges)
@@ -367,18 +326,6 @@ internal static class ClothSubdivision
                         if(count>0) foreach(int i in copies) fit[i]+=sum/count;
                     }
                 }
-                if(slot=="_dwn")
-                {
-                    PanelGeometry.BridgeGusset(rest,fit,faces,pinned);
-                    PanelGeometry.BridgeLowerPanel(rest,fit,faces,fixedRim,true);
-                    PanelGeometry.CarryTrim(rest,fit,faces,fixedRim);
-                }
-                if(slot=="_top")
-                {
-                    PanelGeometry.RearDrape(rest,fit,faces,pinned,fittedBodies);
-                    PanelGeometry.RelaxBust(rest,fit,faces,pinned,stockBody,fittedBodies);
-                    PanelGeometry.BridgeChest(rest,fit,faces,pinned);
-                }
                 PanelStreams.UpdateShading(streams,strides,fields,donor,fit,faces);
                 var pe=fields.First(e=>e.Usage==0);
                 foreach(int i in faces.Distinct())
@@ -400,7 +347,7 @@ internal static class ClothSubdivision
                 Short(metadata,mesh.Header,count); W(metadata,mesh.Header+4,newIndices.Count); W(metadata,mesh.Header+16,first);
             });
         }
-        new GarmentDeformation().Apply(panels,map.Waist,fittedBodies,stockBody);
+
         foreach(var write in emit) write();
         if(vertices.Length==0) return wrapped;
         int dv=checked((int)vertices.Length),di=checked((int)indices.Length);

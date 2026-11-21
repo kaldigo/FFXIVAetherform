@@ -8,6 +8,7 @@
     <DalamudDir Condition="'$(DalamudDir)' == ''">$(AppData)/XIVLauncher/addon/Hooks/dev</DalamudDir>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="NativeMorph.map.gz" LogicalName="Aetherform.NativeMorph.map.gz" />
     <EmbeddedResource Include="VanillaAF.map.gz" LogicalName="Aetherform.VanillaAF.map.gz" />
     <Reference Include="Proteus" HintPath="../vendor/proteus/lib/Proteus.dll" />
     <Reference Include="XivLiveMesh" HintPath="../vendor/proteus/lib/XivLiveMesh.dll" />

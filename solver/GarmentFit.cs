@@ -9,8 +9,9 @@ public static class GarmentFit
 {
     public static byte[] Generate(byte[] garment, string slot, ushort modelRace,
         IReadOnlyDictionary<string,string> originals, IReadOnlyDictionary<string,string> targets,
-        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, IPluginLog log)
+        string[] legOptions, byte[]? deformer, byte[]? skeleton, string bindingDirectory, GarmentClassification? classification, IPluginLog log)
     {
+        if (classification != null && !classification.Matches(garment)) classification = null;
         var uv = new UVRemapService(log, AppContext.BaseDirectory);
         var pairs = new Dictionary<string,BodyRetarget.SlotPair>();
         var bodies = new Dictionary<string,byte[]>();
@@ -27,10 +28,12 @@ public static class GarmentFit
                 stockBody.Add(BodySurface.OfBodyWorn(sourceBody,.025f));
                 fittedBodies.Add(BodySurface.OfBodyWorn(ModelPartReader.Read(target)!, .025f));
             }
-            var refusal = BodyRetarget.BuildPair(part, vanilla, target,
-                part, false, null, null, uv, out var pair);
-            if (refusal != null) throw new InvalidDataException(refusal);
-            pairs[part] = pair;
+            if (slot is "_glv" or "_sho")
+            {
+                var refusal = BodyRetarget.BuildPair(part, vanilla, target, part, false, null, null, uv, out var pair);
+                if (refusal != null) throw new InvalidDataException(refusal);
+                pairs[part] = pair;
+            }
         }
 
         RacialModelBake.Wearer? wearer = null;
@@ -44,32 +47,18 @@ public static class GarmentFit
             garment = route.Into(garment, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         }
         var model = ModelPartReader.Read(garment) ?? throw new InvalidDataException("Unreadable garment.");
-        bool attached = (slot is "_top" or "_dwn") && WrapGarment.HasSkinJoin(garment);
-        BodyRetarget.Planned plan;
+        byte[] result;
         if (slot is "_glv" or "_sho")
         {
             var ends = KeepEnds.Read(slot, model, garment) ?? throw new InvalidDataException("Unreadable limb weights.");
-            plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
+            var plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
+            result = RefitCore.MatchSkinToBody(plan.Model, originals[slot], targets.Values.ToArray(), uv, false, log);
         }
         else
         {
-            var other = slot == "_top" ? "_dwn" : "_top";
-            var shape = pairs[other] with { ShapeOnly = true };
-            plan = RefitCore.PlanRefit(model, garment, [pairs[slot], shape], slot, !attached, true, out _,
-                transfer: slot == "_top" ? YabTransfer.LongCoatEnvelope : YabTransfer.Envelope,
-                strength: slot == "_top" ? .75f : 1f);
-        }
-        var result = attached ? plan.Model : RefitCore.MatchSkinToBody(plan.Model, originals[slot],
-            targets.Values.ToArray(), uv, false, log);
-        if (slot is "_top" or "_dwn")
-        {
-            var bindings = new GarmentBindings(bindingDirectory,slot,garment);
-            var cleared = (byte[])result.Clone();
-            var map = VanillaAfWrap.Get(bodies);
-            WrapGarment.Apply(garment,result,map,bindings,slot,attached,stockBody,fittedBodies);
-            result = ClothSubdivision.Apply(garment,cleared,result,map,bindings,slot,stockBody,fittedBodies);
-            if (attached) result = RefitCore.MatchSkinToBody(result, originals[slot], targets.Values.ToArray(), uv, false, log);
-            bindings.Save();
+            var morphed = new NativeMorph(bodies).Apply(garment);
+            result = ClothSubdivision.Apply(garment, morphed, slot, stockBody, fittedBodies, classification);
+            result = RefitCore.MatchSkinToBody(result, originals[slot], targets.Values.ToArray(), uv, false, log);
         }
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);

@@ -174,7 +174,18 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     var options = test.GetProperty("legOptions").Deserialize<string[]>()!;
     ushort race = test.TryGetProperty("race", out var id) ? id.GetUInt16() : (ushort)201;
     byte[]? FileBytes(string property) => test.TryGetProperty(property, out var path) ? File.ReadAllBytes(path.GetString()!) : null;
-    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),log])!;
+    var classification = test.TryGetProperty("classification",out var recordPath)
+        ? solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.GarmentClassification")!.GetMethod("Read")!.Invoke(null,
+            [File.ReadAllBytes(recordPath.GetString()!),Path.GetFileNameWithoutExtension(recordPath.GetString()!)]) : null;
+    if (test.TryGetProperty("nativeMorphOutput", out var nativeOutput))
+    {
+        var morphType = solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.NativeMorph",true)!;
+        var reference = targets.ToDictionary(k => k.Key,k => File.ReadAllBytes(k.Value));
+        var mapper = Activator.CreateInstance(morphType,BindingFlags.Instance|BindingFlags.NonPublic,null,[reference],null)!;
+        var native = (byte[])morphType.GetMethod("Apply",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(mapper,[game])!;
+        File.WriteAllBytes(nativeOutput.GetString()!,native);
+    }
+    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log])!;
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");
     var hash = Convert.ToHexString(SHA256.HashData(result));
