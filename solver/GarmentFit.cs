@@ -46,7 +46,7 @@ public static class GarmentFit
             var ends = KeepEnds.Read(slot, model, garment) ?? throw new InvalidDataException("Unreadable limb weights.");
             var plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
             result = RefitCore.MatchSkinToBody(plan.Model, originals[slot], targets.Values.ToArray(), uv, false, log);
-            if(slot=="_glv") GloveSkinContact.Apply(garment,result);
+            if(slot=="_glv") result=GloveSkinContact.Apply(garment,result);
         }
         else
         {
@@ -78,6 +78,7 @@ public static class GarmentFit
                 result=MatchRetainedSkin(garment,result,originals[slot],targets.Values.ToArray(),uv,log);
             }
         }
+        if(slot=="_top") result=GloveSkinContact.Apply(garment,result);
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         if (ModelPartReader.Read(result) == null) throw new InvalidDataException("Generated model failed read-back.");
