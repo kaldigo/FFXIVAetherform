@@ -17,6 +17,7 @@
     <EmbeddedResource Include="../classifications/*.json" LogicalName="Aetherform.classifications.%(Filename).json" />
     <EmbeddedResource Include="../assets/physics-sources.bin" LogicalName="Aetherform.physics-sources"/>
     <EmbeddedResource Include="../assets/af-motion.json.gz" LogicalName="Aetherform.af-motion.json.gz"/>
+    <EmbeddedResource Include="../assets/tiramisu-sources.bin" LogicalName="Aetherform.tiramisu-sources"/>
     <EmbeddedResource Include="../assets/motion.json.gz" LogicalName="Aetherform.motion.json.gz"/>
     <EmbeddedResource Include="../assets/mark.png" LogicalName="Aetherform.mark.png"/>
     <None Update="Aetherform.json" CopyToOutputDirectory="PreserveNewest" />

@@ -14,15 +14,14 @@ internal sealed class PhysicsBank : IDisposable
     private sealed record Recipe(Area[] Areas, string[] Races, RaceRules[] Rules, int[][] Nodes, string[][] Orders, string[] Files);
     private readonly Recipe recipe;
     private readonly string cache;
-    private readonly ZipArchive? motion;
+    private readonly ZipArchive motion;
     private sealed record Catalog(Dictionary<int, Dictionary<string, Dictionary<int, string[]>>> Areas, Dictionary<string, string[]> Sources);
-    private readonly Dictionary<string, ZipArchive> packages = [];
     private readonly Catalog? catalog;
     private readonly Dictionary<int, Dictionary<int, Dictionary<int, string[]>>> extra = [];
     private readonly int[] originalCounts;
     internal sealed record ChestStyle(string Name, int[] Indices, string[] Variations);
     public ChestStyle[] ChestStyles { get; }
-    public bool HasMotion => motion != null;
+    public bool HasMotion => true;
     public PhysicsIndex Index { get; }
     public int[] Defaults => Index.Areas.Select(a => a.DefaultIndex).ToArray();
 
@@ -37,10 +36,8 @@ internal sealed class PhysicsBank : IDisposable
             recipe = JsonSerializer.Deserialize<Recipe>(recipeStream, new JsonSerializerOptions { PropertyNameCaseInsensitive=true })!;
             Index = new(recipe.Areas, recipe.Races);
             originalCounts = Index.Areas.Select(a => a.Values.Length).ToArray();
-            var path = Path.Combine(payloadDirectory, "tiramisu2110.zip");
-            if (File.Exists(path))
             {
-                motion = ZipFile.OpenRead(path);
+                motion = new ZipArchive(typeof(PhysicsBank).Assembly.GetManifestResourceStream("Aetherform.tiramisu-sources")!);
                 using var data = typeof(PhysicsBank).Assembly.GetManifestResourceStream("Aetherform.motion.json.gz")!;
                 using var index = new GZipStream(data, CompressionMode.Decompress);
                 catalog = JsonSerializer.Deserialize<Catalog>(index)!;
@@ -138,23 +135,10 @@ internal sealed class PhysicsBank : IDisposable
         if (!Matches(bytes, hash)) throw new InvalidDataException("Damaged physics asset.");
         return bytes;
     }
-    private byte[] ReadMotion(string hash)
-    {
-        var path = catalog!.Sources[hash];
-        if (!packages.TryGetValue(path[0], out var package))
-        {
-            using var entry = (motion!.GetEntry(path[0]) ?? throw new InvalidDataException("Expected the original Tiramisu2 2110 archive.")).Open();
-            var buffer = new MemoryStream();
-            entry.CopyTo(buffer);
-            buffer.Position = 0;
-            packages[path[0]] = package = new ZipArchive(buffer, ZipArchiveMode.Read);
-        }
-        return ReadBytes(package, path[1], hash);
-    }
+    private byte[] ReadMotion(string hash) => ReadBytes(motion, hash, hash);
     public void Dispose()
     {
-        foreach (var package in packages.Values) package.Dispose();
-        motion?.Dispose();
+        motion.Dispose();
         bank.Dispose();
     }
 }

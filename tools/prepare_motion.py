@@ -6,7 +6,7 @@ import io
 import json
 from pathlib import Path
 import re
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
 
 FAMILIES = {"Tiramisu": "Classic bounce", "Pound Cake": "Vertical bounce",
             "Petit Four": "Small bust", "Hitomi": "Low sway", "Squish": "Compression",
@@ -32,7 +32,7 @@ def chest_name(family, name):
     return FAMILIES[family] + (" / " + name if name else ""), level
 
 
-def build(source, dest):
+def build(source, dest, source_bank):
     entries = {str(i): {} for i in (0, 3, 4, 5, 6, 7, 8)}
     assets = {}
     with ZipFile(source) as outer:
@@ -86,6 +86,16 @@ def build(source, dest):
                 if 3 not in levels:
                     raise ValueError("Missing reference height for " + name)
         dest.write_bytes(gzip.compress(json.dumps({"Areas": entries, "Sources": assets}, separators=(",", ":")).encode(), mtime=0))
+    with ZipFile(source) as original, ZipFile(source_bank, "w", ZIP_DEFLATED) as output:
+        for package in sorted({path[0] for path in assets.values()}):
+            with ZipFile(io.BytesIO(original.read(package))) as donor:
+                for key, path in assets.items():
+                    if path[0] != package:
+                        continue
+                    data = donor.read(path[1])
+                    if hashlib.sha256(data).hexdigest() != key:
+                        raise ValueError("Source hash mismatch")
+                    output.writestr(key, data)
     print({area: len(options) for area, options in entries.items()})
 
 
@@ -93,7 +103,8 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("source", type=Path)
     p.add_argument("destination", type=Path)
+    p.add_argument("source_bank", type=Path)
     args = p.parse_args()
     pending = args.destination.with_suffix(".building")
-    build(args.source, pending)
+    build(args.source, pending, args.source_bank)
     pending.replace(args.destination)

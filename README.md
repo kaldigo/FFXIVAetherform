@@ -6,7 +6,7 @@ A Dalamud plugin for installing the Aetherform body and building physics presets
 
 In Dalamud custom plugin repositories, add https://raw.githubusercontent.com/kaldigo/DalamudPlugins/main/pluginmaster.json. Open /xlplugins, search for Aetherform and install it. Select a collection and choose **Install body**. The plugin downloads Aetherform.pmp from the body release, verifies its SHA-256, and imports it into Penumbra. The download is cached in %APPDATA%/XIVLauncher/pluginConfigs/Aetherform/payload. The original physics controls work from the plugin alone.
 
-For the additional **Tiramisu2** controls, place your original `tiramisu2110.zip` in that payload folder and reload Aetherform. Select a chest motion and its variation, then choose height, collision and the other body areas independently. **Full ear bounce** and **Alternate tail sway** can each be used with the original Aetherform choices. The plugin reads the archive locally when you apply a choice. Tiramisu2 does not need to be enabled in Penumbra.
+The physics configurator includes Tiramisu2 motion sources by Amatiramisu. Choose a chest style and variation, then select height, collision, butt, belly, thighs, genitals, ears and tail independently. All choices are available immediately after installing the plugin.
 
 ## Development bundle
 

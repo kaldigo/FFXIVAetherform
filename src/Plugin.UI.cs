@@ -117,8 +117,6 @@ public sealed partial class Plugin
     private void DrawPhysics()
     {
         if (!Collection() || bank == null) return;
-        if (!bank.HasMotion)
-            ImGui.TextWrapped($"For more motion choices, place tiramisu2110.zip in {payloadDirectory} and reload Aetherform.");
         for (int i = 0; i < bank.Index.Areas.Length; i++)
         {
             var area = bank.Index.Areas[i];
