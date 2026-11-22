@@ -32,6 +32,9 @@ public sealed partial class Plugin : IDalamudPlugin
     private readonly Dictionary<string, (DateTime LastWrite, bool Current)> versions = [];
     private Guid selected;
     private Guid? installing;
+    private readonly CancellationTokenSource downloadLifetime = new();
+    private Task<string>? download;
+    private Guid downloadCollection;
     private long deadline, nextPoll;
     private string status = "";
     private int[] draft;
@@ -83,9 +86,7 @@ public sealed partial class Plugin : IDalamudPlugin
         {
             if (bank == null)
             {
-                var path = Path.Combine(payloadDirectory, "physics.zip");
-                if (!File.Exists(path)) return;
-                bank = new(path, cacheDirectory);
+                bank = new(payloadDirectory, cacheDirectory);
                 Select(selected);
             }
             var mods = pi.GetIpcSubscriber<Dictionary<string, string>>("Penumbra.GetModList");
@@ -99,6 +100,15 @@ public sealed partial class Plugin : IDalamudPlugin
             var root = pi.GetIpcSubscriber<string>("Penumbra.GetModDirectory").InvokeFunc();
             body = mods.InvokeFunc().Where(m => m.Value == "Aetherform").Select(m => m.Key)
                 .FirstOrDefault(dir => CurrentBody(Path.Combine(root, dir, "meta.json")));
+            if (download is { IsCompleted: true } finished)
+            {
+                download = null;
+                var package = finished.GetAwaiter().GetResult();
+                if (!collections.ContainsKey(downloadCollection))
+                    status = "Body downloaded. Select a collection to install it.";
+                else if (body != null) Enable(downloadCollection);
+                else Import(package, downloadCollection);
+            }
             if (installing is Guid target)
             {
                 if (body != null) { installing = null; Enable(target); }
@@ -129,10 +139,15 @@ public sealed partial class Plugin : IDalamudPlugin
     private void Install()
     {
         if (body != null) { Enable(selected); return; }
-        var package = Path.Combine(payloadDirectory, "Aetherform.pmp");
-        if (!File.Exists(package)) throw new FileNotFoundException("The body package is missing.", package);
+        downloadCollection = selected;
+        download = BodySetup.GetPackage(payloadDirectory, downloadLifetime.Token);
+        status = "Preparing body package…";
+        nextPoll = 0;
+    }
+    private void Import(string package, Guid collection)
+    {
         Check(pi.GetIpcSubscriber<string,int>("Penumbra.InstallMod.V5").InvokeFunc(package));
-        installing = selected;
+        installing = collection;
         deadline = Environment.TickCount64 + 300000;
         status = "Import queued. Complete any import prompt in Penumbra.";
     }
@@ -193,6 +208,8 @@ public sealed partial class Plugin : IDalamudPlugin
     }
     public void Dispose()
     {
+        downloadLifetime.Cancel();
+        downloadLifetime.Dispose();
         framework.Update -= Tick;
         pi.GetIpcSubscriber<object>("Penumbra.Initialized").Unsubscribe(Reset);
         pi.UiBuilder.Draw -= Draw;

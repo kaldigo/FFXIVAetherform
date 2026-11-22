@@ -69,6 +69,13 @@ internal sealed class MotionFile
         }
     }
 
+    public void Assemble((MotionFile Source, int Index)[] components)
+    {
+        var selected = components.Select(c => c.Source.simulations[c.Index]).ToArray();
+        simulations.Clear();
+        simulations.AddRange(selected);
+    }
+
     public void Replace(int area, MotionFile donor, bool collisions, bool supplementHeight)
     {
         var insert = simulations.FindIndex(s => s.Area == area);

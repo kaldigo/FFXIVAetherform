@@ -5,12 +5,14 @@ using System.Text.Json;
 namespace Aetherform;
 
 internal sealed record Area(string Name, string[] Values, int DefaultIndex);
-internal sealed record PhysicsIndex(Area[] Areas, string[] Races, Dictionary<string, string[]> Rows);
+internal sealed record PhysicsIndex(Area[] Areas, string[] Races);
 
 internal sealed class PhysicsBank : IDisposable
 {
     private readonly ZipArchive bank;
-    private readonly Dictionary<string, string[]> heights;
+    private sealed record RaceRules(int Frame, int Order, Dictionary<string,int> Slots);
+    private sealed record Recipe(Area[] Areas, string[] Races, RaceRules[] Rules, int[][] Nodes, string[][] Orders, string[] Files);
+    private readonly Recipe recipe;
     private readonly string cache;
     private readonly ZipArchive? motion;
     private sealed record Catalog(Dictionary<int, Dictionary<string, Dictionary<int, string[]>>> Areas, Dictionary<string, string[]> Sources);
@@ -24,16 +26,18 @@ internal sealed class PhysicsBank : IDisposable
     public PhysicsIndex Index { get; }
     public int[] Defaults => Index.Areas.Select(a => a.DefaultIndex).ToArray();
 
-    public PhysicsBank(string package, string cache)
+    public PhysicsBank(string payloadDirectory, string cache)
     {
         this.cache = cache;
-        bank = ZipFile.OpenRead(package);
+        bank = new ZipArchive(typeof(PhysicsBank).Assembly.GetManifestResourceStream("Aetherform.physics-sources")!);
         try
         {
-            Index = Read<PhysicsIndex>("index.json");
-            heights = Read<Dictionary<string, string[]>>("heights.json");
+            using var recipeData = typeof(PhysicsBank).Assembly.GetManifestResourceStream("Aetherform.af-motion.json.gz")!;
+            using var recipeStream = new GZipStream(recipeData, CompressionMode.Decompress);
+            recipe = JsonSerializer.Deserialize<Recipe>(recipeStream, new JsonSerializerOptions { PropertyNameCaseInsensitive=true })!;
+            Index = new(recipe.Areas, recipe.Races);
             originalCounts = Index.Areas.Select(a => a.Values.Length).ToArray();
-            var path = Path.Combine(Path.GetDirectoryName(package)!, "tiramisu2110.zip");
+            var path = Path.Combine(payloadDirectory, "tiramisu2110.zip");
             if (File.Exists(path))
             {
                 motion = ZipFile.OpenRead(path);
@@ -58,10 +62,31 @@ internal sealed class PhysicsBank : IDisposable
         catch { motion?.Dispose(); bank.Dispose(); throw; }
     }
 
-    private T Read<T>(string name)
+    private MotionFile BuildOriginal(int race, int[] picks)
     {
-        using var stream = bank.GetEntry(name)!.Open();
-        return JsonSerializer.Deserialize<T>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var rules = recipe.Rules[race];
+        int[] Leaf(int id)
+        {
+            var node = recipe.Nodes[id];
+            while (node[0] >= 0) node = recipe.Nodes[node[1 + picks[node[0]]]];
+            return node;
+        }
+        var sources = new Dictionary<int, MotionFile>();
+        MotionFile Source(int id)
+        {
+            if (sources.TryGetValue(id, out var file)) return file;
+            var hash = recipe.Files[id];
+            return sources[id] = new MotionFile(ReadBytes(bank, "bank/" + hash + ".phyb", hash));
+        }
+        var frame = Source(Leaf(rules.Frame)[1]);
+        var order = recipe.Orders[Leaf(rules.Order)[1]];
+        var components = order.Select(slot =>
+        {
+            var source = Leaf(rules.Slots[slot]);
+            return (Source(source[1]), source[2]);
+        }).ToArray();
+        frame.Assemble(components);
+        return frame;
     }
 
     public bool Valid(int[] picks) => picks.Length == Index.Areas.Length &&
@@ -74,30 +99,27 @@ internal sealed class PhysicsBank : IDisposable
         for (int i = 0; i < picks.Length; i++)
             if (picks[i] >= originalCounts[i])
                 basePicks[i] = i == 0 ? 2 : Index.Areas[i].DefaultIndex;
-        var row = Index.Rows[string.Concat(basePicks.Where((_, i) => i != 1))];
         var paths = new Dictionary<string, string>();
         Directory.CreateDirectory(cache);
         for (int i = 0; i < Index.Races.Length; ++i)
         {
             var race = Index.Races[i];
-            var hash = heights[row[i]][picks[1]];
-            MotionFile? body = null;
+            var body = BuildOriginal(i, basePicks);
             for (int area = 0; area < picks.Length; area++)
             {
                 if (picks[area] < originalCounts[area] || (area >= 7 && race != "0801")) continue;
                 var levels = extra[area][picks[area]];
                 var exact = levels.TryGetValue(picks[1], out var files);
                 var source = (files ?? levels[3])[i];
-                body ??= new MotionFile(ReadBytes(bank, "bank/" + hash + ".phyb", hash));
                 body.Replace(area, new MotionFile(ReadMotion(source)),
                     picks[2] != 0, area == 0 && !exact && picks[1] != 3);
             }
-            var mixed = body?.Encode();
-            if (mixed != null) hash = Convert.ToHexStringLower(SHA256.HashData(mixed));
+            var mixed = body.Encode();
+            var hash = Convert.ToHexStringLower(SHA256.HashData(mixed));
             var file = Path.Combine(cache, hash + ".phyb");
             if (!File.Exists(file) || !Matches(File.ReadAllBytes(file), hash))
             {
-                var bytes = mixed ?? ReadBytes(bank, "bank/" + hash + ".phyb", hash);
+                var bytes = mixed;
                 File.WriteAllBytes(file + ".tmp", bytes);
                 File.Move(file + ".tmp", file, true);
             }

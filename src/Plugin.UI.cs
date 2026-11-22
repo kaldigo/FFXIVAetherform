@@ -63,10 +63,7 @@ public sealed partial class Plugin
     {
         if (bank == null)
         {
-            ImGui.TextWrapped("Copy your Aetherform.pmp and physics.zip into this folder to use the installer and physics builder.");
-            ImGui.TextWrapped(payloadDirectory);
-            if (Controls.ActionButton("Copy folder path")) ImGui.SetClipboardText(payloadDirectory);
-            if (status.Length > 0) ImGui.TextWrapped(status);
+            ImGui.TextWrapped(status.Length == 0 ? "Loading Aetherform…" : status);
             return false;
         }
         if (collections.Count == 0)
@@ -108,7 +105,7 @@ public sealed partial class Plugin
         }
         if (fits.Status.Length > 0) ImGui.TextWrapped(fits.Status);
         ImGui.TextWrapped("Install the body in Penumbra and enable it in the selected collection. Choose your body shape, hands, feet and hair in the modâ€™s Penumbra settings.");
-        ImGui.BeginDisabled(installing != null);
+        ImGui.BeginDisabled(installing != null || download != null);
         try
         {
             if (Controls.ActionButton(body == null ? "Install body" : "Enable installed body")) Install();

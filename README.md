@@ -4,9 +4,9 @@ A Dalamud plugin for installing the Aetherform body and building physics presets
 
 ## Install through Dalamud
 
-In Dalamud custom plugin repositories, add https://raw.githubusercontent.com/kaldigo/DalamudPlugins/main/pluginmaster.json. Open /xlplugins, search for Aetherform and install it. The plugin reads your Aetherform.pmp and physics.zip from %APPDATA%/XIVLauncher/pluginConfigs/Aetherform/payload. Keep these files there across plugin updates. The public release includes the plugin and AetherglassUI.
+In Dalamud custom plugin repositories, add https://raw.githubusercontent.com/kaldigo/DalamudPlugins/main/pluginmaster.json. Open /xlplugins, search for Aetherform and install it. Select a collection and choose **Install body**. The plugin downloads Aetherform.pmp from the body release, verifies its SHA-256, and imports it into Penumbra. The download is cached in %APPDATA%/XIVLauncher/pluginConfigs/Aetherform/payload. The original physics controls work from the plugin alone.
 
-For the additional **Tiramisu2** controls, place your original `tiramisu2110.zip` beside `physics.zip` and reload Aetherform. Select a chest motion and its variation, then choose height, collision and the other body areas independently. **Full ear bounce** and **Alternate tail sway** can each be used with the original Aetherform choices. The plugin reads the archive locally when you apply a choice. Tiramisu2 does not need to be enabled in Penumbra.
+For the additional **Tiramisu2** controls, place your original `tiramisu2110.zip` in that payload folder and reload Aetherform. Select a chest motion and its variation, then choose height, collision and the other body areas independently. **Full ear bounce** and **Alternate tail sway** can each be used with the original Aetherform choices. The plugin reads the archive locally when you apply a choice. Tiramisu2 does not need to be enabled in Penumbra.
 
 ## Development bundle
 
@@ -17,7 +17,7 @@ Extract the entire plugin ZIP to a dedicated folder. In Dalamud settings, open *
 3. Open **Physics preset builder**. Set chest motion, height, collision, butt, belly, thighs, genitals, Miqo’te ears and tail independently. Choose **Apply to collection**, then redraw your character in Penumbra. Named presets can be loaded into another collection and applied there.
 4. Switching your character back to its original collection restores that collection's appearance. Each applied preset is restored while the body is enabled and the plugin is loaded. Unloading the plugin removes its temporary physics redirects.
 
-The body ships with its own default physics. Custom presets resolve to one complete physics file per supported race at one priority above the body. The plugin extracts the selected precomputed files locally and reuses them. The catalog comes from the Aetherform physics bank with its reduced ear bounce and V1 tail. The pinned Proteus solver libraries are in vendor/proteus. Body assets are staged separately.
+The body ships with its own default physics. Custom presets resolve to one complete physics file per supported race at one priority above the body. The plugin assembles the selected simulators at runtime from 31 embedded sources. The catalog comes from the Aetherform physics bank with its reduced ear bounce and V1 tail. The pinned Proteus solver libraries are in vendor/proteus. Body assets are staged separately.
 
 ## Vanilla refits on equip
 
