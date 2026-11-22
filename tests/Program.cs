@@ -56,6 +56,18 @@ var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("A
 if (editCheck)
 {
     var wrapAssembly = solver.DeclaringType!.Assembly;
+    var clearanceType=wrapAssembly.GetType("Aetherform.Geometry.ClearanceSurface",true)!;
+    var ray=clearanceType.GetMethod("Ray",BindingFlags.Instance|BindingFlags.NonPublic)!;
+    bool Hits(float height,float limit)
+    {
+        Vector3[] points=[new(-2,-2,height),new(2,-2,height),new(0,2,height)];
+        var surface=Activator.CreateInstance(clearanceType,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public,null,[points],null)!;
+        return (bool)ray.Invoke(surface,[Vector3.Zero,Vector3.UnitZ,Vector3.Zero,limit])!;
+    }
+    if(Hits(10,1) || !Hits(.5f,1) || !Hits(10,float.PositiveInfinity))
+        throw new Exception("Skin contact rays crossed their finite contact limit or lost a nearby contact.");
+    Console.WriteLine("Near-contact rays exclude distant clothing while retaining local contacts.");
+
     var loadSize = wrapAssembly.GetType("Aetherform.Geometry.NativeMorph",true)!
         .GetMethod("LoadSize",BindingFlags.Static|BindingFlags.NonPublic)!;
     foreach (var chest in new[] {"XS","Small","Medium","Large"})

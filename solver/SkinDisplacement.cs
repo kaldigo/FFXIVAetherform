@@ -161,7 +161,9 @@ internal static class SkinDisplacement
                 carrier[i]/=count[i];
                 if(fixedNode[i] || normals[i].LengthSquared()<1e-10f) continue;
                 var p=carrier[i];
-                if(!body.Ray(p,Vector3.Normalize(normals[i]),out var normal)) continue;
+                // Preserve authored near-contact clearance. A ray across exposed
+                // skin can hit clothing on another limb and must not constrain it.
+                if(!body.Ray(p,Vector3.Normalize(normals[i]),out var normal,1)) continue;
                 float lost=Vector3.Dot(normal,native[i]+solved[i]-p);
                 if(lost>0) solved[i]-=lost*normal;
             }

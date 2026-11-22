@@ -46,9 +46,9 @@ internal sealed class ClearanceSurface
         }
         Visit(root);
     }
-    internal bool Ray(Vector3 origin,Vector3 direction,out Vector3 outward)
+    internal bool Ray(Vector3 origin,Vector3 direction,out Vector3 outward,float maximumDistance=float.PositiveInfinity)
     {
-        double best=double.PositiveInfinity;Vector3 normal=default;
+        double best=maximumDistance;Vector3 normal=default;
         bool Intersects(Node n)
         {
             double near=-1e-6,far=best;
@@ -79,7 +79,7 @@ internal sealed class ClearanceSurface
                 best=Math.Max(0,distance);normal=Vector3.Normalize(Vector3.Cross(e,f));
             }
         }
-        Visit(root);outward=normal;return double.IsFinite(best);
+        Visit(root);outward=normal;return normal.LengthSquared()>0;
     }
     internal Hit Nearest(Vector3 point)
     {
