@@ -106,7 +106,11 @@ public sealed partial class Plugin : IDalamudPlugin
             }
             fits.Update(root, body, profiles.RefitDisabled,profiles.RefitPriority);
             foreach (var id in active.Keys.Except(collections.Keys).ToArray()) active.Remove(id);
-            foreach (var id in profiles.Applied.Keys.Where(collections.ContainsKey)) Sync(id);
+            foreach (var id in profiles.Applied.Keys.Where(collections.ContainsKey))
+            {
+                if (bank.Valid(profiles.Applied[id])) Sync(id);
+                else Remove(id);
+            }
         }
         catch (Exception ex) { Report(ex); nextPoll += 8000; }
     }
@@ -149,7 +153,7 @@ public sealed partial class Plugin : IDalamudPlugin
             return;
         }
         var picks = profiles.Applied[id];
-        var key = string.Concat(picks);
+        var key = string.Join(",", picks);
         var priority = checked(values.Item2 + 1);
         if (active.TryGetValue(id, out var previous) && previous == (key, priority)) return;
         var files = bank!.Resolve(picks);

@@ -44,6 +44,8 @@ def package(project, output):
             archive.write(binaries / name, name)
         for name in ("Aetherform.pmp", "physics.zip"):
             archive.write(payload / name, name)
+        if (payload / "tiramisu2110.zip").is_file():
+            archive.write(payload / "tiramisu2110.zip", "tiramisu2110.zip")
     with ZipFile(output) as archive:
         assert archive.testzip() is None
     print(f"Verified {count} selections for eight races and {len(used)} unique physics files. Created {output}")

@@ -120,9 +120,31 @@ public sealed partial class Plugin
     private void DrawPhysics()
     {
         if (!Collection() || bank == null) return;
+        if (!bank.HasMotion)
+            ImGui.TextWrapped($"For more motion choices, place tiramisu2110.zip in {payloadDirectory} and reload Aetherform.");
         for (int i = 0; i < bank.Index.Areas.Length; i++)
         {
             var area = bank.Index.Areas[i];
+            if (i == 0 && bank.HasMotion)
+            {
+                var style = bank.ChestStyles.Single(s => s.Indices.Contains(draft[0]));
+                Controls.Row(area.Name, area.Name, "", () =>
+                {
+                    var name = Controls.Choice("##style", style.Name, bank.ChestStyles.Select(s => s.Name).ToArray());
+                    if (name == style.Name) return;
+                    style = bank.ChestStyles.Single(s => s.Name == name);
+                    int standard = Array.IndexOf(style.Variations, "Standard");
+                    draft[0] = style.Indices[Math.Max(0, standard)];
+                });
+                if (style.Indices.Length > 1)
+                    Controls.Row("chestVariation", "Chest variation", "", () =>
+                    {
+                        int j = Array.IndexOf(style.Indices, draft[0]);
+                        var value = Controls.Choice("##variation", style.Variations[j], style.Variations);
+                        draft[0] = style.Indices[Array.IndexOf(style.Variations, value)];
+                    });
+                continue;
+            }
             Controls.Row(area.Name, area.Name, "", () =>
             {
                 var value = Controls.Choice("##choice", area.Values[draft[i]], area.Values);
