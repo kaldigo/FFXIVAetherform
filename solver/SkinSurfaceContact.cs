@@ -62,6 +62,7 @@ internal static class SkinSurfaceContact
         }
         if(rest.Count==0) return fit;
         var skin=new ClearanceSurface(rest.ToArray());
+        ClearanceSurface? fittedSkin=null;
         var authored=new ClearanceSurface(authoredRest.ToArray());
         foreach(var (m,a,b) in panels)
         {
@@ -109,14 +110,27 @@ internal static class SkinSurfaceContact
                 if(!flush && !band) continue;
                 foreach(var (i,h) in hits)
                 {
-                    int t=3*h.Face;
-                    BrushTransfer.ClosestOnTriangle(points[i],rest[t],rest[t+1],rest[t+2],out var x,out var y,out var z);
-                    var n=Vector3.Cross(target[t+1]-target[t],target[t+2]-target[t]);
-                    if(n.LengthSquared()<1e-12f)continue;
-                    var authoredHit=authored.Nearest(points[i]);
-                    var gap=Vector3.Dot(points[i]-authoredHit.Point,authoredHit.Normal);
-                    var goal=x*target[t]+y*target[t+1]+z*target[t+2]+Vector3.Normalize(n)*gap;
-                    moves[i]=goal-b.P[i];
+                    int t;
+                    float x,y,z;
+                    if(flush)
+                    {
+                        t=3*h.Face;
+                        BrushTransfer.ClosestOnTriangle(points[i],rest[t],rest[t+1],rest[t+2],out x,out y,out z);
+                        var n=Vector3.Cross(target[t+1]-target[t],target[t+2]-target[t]);
+                        if(n.LengthSquared()<1e-12f)continue;
+                        var authoredHit=authored.Nearest(points[i]);
+                        var gap=Vector3.Dot(points[i]-authoredHit.Point,authoredHit.Normal);
+                        var goal=x*target[t]+y*target[t+1]+z*target[t+2]+Vector3.Normalize(n)*gap;
+                        moves[i]=goal-b.P[i];
+                    }
+                    else
+                    {
+                        // Thick bands already have a fitted cross-section and clearance.
+                        // Bind that geometry to the actual drawn skin beneath it.
+                        fittedSkin??=new ClearanceSurface(target.ToArray());
+                        t=3*fittedSkin.Nearest(b.P[i]).Face;
+                        BrushTransfer.ClosestOnTriangle(b.P[i],target[t],target[t+1],target[t+2],out x,out y,out z);
+                    }
                     var blend=new Dictionary<string,float>();
                     foreach(var (corner,factor) in new[]{(t,x),(t+1,y),(t+2,z)})
                     {
