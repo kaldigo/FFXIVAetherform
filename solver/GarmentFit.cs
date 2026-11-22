@@ -41,19 +41,18 @@ public static class GarmentFit
         }
         var model = ModelPartReader.Read(garment) ?? throw new InvalidDataException("Unreadable garment.");
         byte[] result;
+        var origins = new Dictionary<int,ClothSubdivision.Origins>();
         if (slot is "_glv" or "_sho")
         {
             var ends = KeepEnds.Read(slot, model, garment) ?? throw new InvalidDataException("Unreadable limb weights.");
             var plan = KeepEnds.Plan(model, garment, ends, pairs[ends.Limb], pairs[slot], true);
             result = RefitCore.MatchSkinToBody(plan.Model, originals[slot], targets.Values.ToArray(), uv, false, log);
-            if(slot=="_glv") result=GloveSkinContact.Apply(garment,result);
         }
         else
         {
             var morphed = new NativeMorph(bodies,chestOption,legOption).Apply(garment);
             MorphContinuity.Apply(garment,morphed);
             morphed=GarmentSupport.Apply(garment,morphed,classification);
-            var origins = new Dictionary<int,ClothSubdivision.Origins>();
             var overlays=SkinOverlays.Find(garment);
             result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins,overlays);
             PanelPeaks.Apply(garment,morphed,result,classification,NativeMorph.VanillaSurface,origins);
@@ -78,7 +77,7 @@ public static class GarmentFit
                 result=MatchRetainedSkin(garment,result,originals[slot],targets.Values.ToArray(),uv,log);
             }
         }
-        if(slot=="_top") result=GloveSkinContact.Apply(garment,result);
+        result=SkinSurfaceContact.Apply(garment,result,origins);
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         if (ModelPartReader.Read(result) == null) throw new InvalidDataException("Generated model failed read-back.");

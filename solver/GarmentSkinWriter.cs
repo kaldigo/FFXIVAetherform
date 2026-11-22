@@ -31,6 +31,7 @@ internal static class GarmentSkinWriter
         var schedules=assembly.Schedule.GroupBy(k=>k.Mesh).ToArray();
         foreach(var g in schedules) bones.Add(g.Key,g.SelectMany(k=>assembly.Knots[k.Variable].Weights).Select(w=>w.Bone).Distinct().ToArray());
         byte[] rebound=SkinDrawBindings.Add(cloth,body,material,bones,meshes.ToHashSet());
+        rebound=SkinSurfaceContact.Apply(original,rebound,origins,assembly);
         var metadata=SecondSkinWriter.Parse(rebound);
         var format=new SkinVertexFormat(body,chart);
         var draws=new List<LodMeshWriter.Draw>();
