@@ -90,6 +90,9 @@ public static class StandaloneRefit
         return result;
     }
 
+    public static int ModelCount(string source) => Objects(ReadManifest(source))
+        .Where(o=>o["Files"] is JsonObject).Sum(o=>((JsonObject)o["Files"]!).Count(p=>IsSupported(p.Key,out _,out _)));
+
     // Keep the original available until the new mod is configured and enabled.
     public static void Activate(Action configure,Action<bool> enabled,bool wasEnabled,
         IReadOnlyList<Action<bool>> superseded,Action<Exception>? recoveryFailure=null)

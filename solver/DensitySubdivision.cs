@@ -11,7 +11,8 @@ internal static class DensitySubdivision
     {
         internal static Edge Of(int a,int b)=>a<=b?new(a,b):new(b,a);
     }
-    internal static byte[] Apply(byte[] source,byte[] morph,BodyDensity density,Dictionary<int,ClothSubdivision.Origins> origins,IReadOnlySet<int>? keepTopology=null)
+    internal static byte[] Apply(byte[] source,byte[] morph,BodyDensity density,Dictionary<int,ClothSubdivision.Origins> origins,IReadOnlySet<int>? keepTopology=null,
+        IReadOnlyDictionary<int,IReadOnlySet<int>>? held=null)
     {
         var src=SecondSkinWriter.Parse(source);var refit=SecondSkinWriter.Parse(morph);
         var rims=ClothSubdivision.IdentifyJoins(src).Keys.ToLookup(k=>k.Mesh);
@@ -34,6 +35,7 @@ internal static class DensitySubdivision
             var physical=new Dictionary<Vector3,int>();var ids=p.Select(Index).ToList();
             int Index(Vector3 v){if(!physical.TryGetValue(v,out int i)) physical.Add(v,i=physical.Count);return i;}
             var fixedEdges=locked.Select(e=>Edge.Of(ids[e.A],ids[e.B])).ToHashSet();
+            var pinned=held?.GetValueOrDefault(m)?.Select(v=>ids[v]).ToHashSet() ?? [];
             var done=new HashSet<(int,int,int)>();
             for(int step=0;step<20;step++)
             {
@@ -48,7 +50,7 @@ internal static class DensitySubdivision
                     if(bc>longest){edge=Edge.Of(f.B,f.C);longest=bc;}
                     if(ca>longest) edge=Edge.Of(f.C,f.A);
                     edge=Edge.Of(ids[edge.A],ids[edge.B]);
-                    if(!fixedEdges.Contains(edge)) marked.Add(edge);
+                    if(!fixedEdges.Contains(edge) && !pinned.Contains(edge.A) && !pinned.Contains(edge.B)) marked.Add(edge);
                 }
                 if(marked.Count==0) break;
                 var splits=new Dictionary<Edge,int>();int saved=p.Count;
@@ -87,7 +89,6 @@ internal static class DensitySubdivision
             var indices=new List<ushort>();var variantRows=new List<byte[]>();var variantIds=new Dictionary<string,ushort>();
             var changes=oldShapes.Keys.ToDictionary(n=>n,n=>new List<(ushort,ushort)>());
             int[] starts=new int[ix.Length/3+1];int parent=-1;
-            var field=refit.Decls[m].First(e=>e.Usage==0);
             foreach(var f in faces)
             {
                 if(parent!=f.Parent){parent=f.Parent;starts[parent]=indices.Count;}
@@ -97,11 +98,11 @@ internal static class DensitySubdivision
                     int id=v[k];var u=bary[k];double[] w=[1-u.X-u.Y,u.X,u.Y];
                     foreach(var (name,map) in oldShapes)
                     {
-                        bool affected=false;var shift=Vector3.Zero;int exact=-1;
+                        bool affected=false;int exact=-1;
                         for(int j=0;j<3;j++)
                             if(w[j]>0 && map.TryGetValue(3*parent+j,out int r))
                             {
-                                affected=true;shift+=(float)w[j]*(fit.P[r]-fit.P[ix[3*parent+j]]);
+                                affected=true;
                                 if(w[j]==1) exact=r;
                             }
                         if(!affected) continue;
@@ -109,10 +110,8 @@ internal static class DensitySubdivision
                         if(exact>=0) variant=checked((ushort)exact);
                         else
                         {
-                            var row=new byte[stride.Sum()];int at=0;
-                            for(int s=0;s<3;s++){Buffer.BlockCopy(streams[s],id*stride[s],row,at,stride[s]);at+=stride[s];}
-                            var q=(p[id]+shift)/1000;
-                            SecondSkinWriter.WriteXYZ(row,stride.Take(field.Stream).Sum()+field.Offset,field.Type,q.X,q.Y,q.Z);
+                            var corners=Enumerable.Range(0,3).Select(j=>map.GetValueOrDefault(3*parent+j,ix[3*parent+j])).ToArray();
+                            var row=PanelStreams.ShapeRow(streams,stride,refit.Decls[m],corners,w);
                             string key=Convert.ToBase64String(row);
                             if(!variantIds.TryGetValue(key,out variant))
                             {

@@ -174,4 +174,59 @@ internal static class PanelStreams
             used=cumulative;
         }
     }
+
+    // A new shape replacement carries the entire authored vertex, including
+    // its UVs, frame, colours and weights, not just the shape's position delta.
+    internal static byte[] ShapeRow(byte[][] streams,int[] stride,E[] fields,int[] corners,double[] weights)
+    {
+        var row=new byte[stride.Sum()];
+        Span<float> sample=stackalloc float[4],sum=stackalloc float[4];
+        int dominant=Array.IndexOf(weights,weights.Max());
+        foreach(var e in fields)
+        {
+            if(e.Usage is 1 or 2) continue;
+            sum.Clear();float handedness=0;
+            for(int j=0;j<3;j++)
+            {
+                SecondSkinWriter.ReadTyped(streams[e.Stream],corners[j]*stride[e.Stream]+e.Offset,e.Type,sample);
+                for(int k=0;k<4;k++) sum[k]+=(float)weights[j]*sample[k];
+                if(j==dominant) handedness=sample[3];
+            }
+            if(e.Usage is 3 or 5 or 6)
+            {
+                var normal=new Vector3(sum[0],sum[1],sum[2]);
+                if(e.Type==8) normal=2*normal-Vector3.One;
+                if(normal.LengthSquared()>1e-10f) normal=Vector3.Normalize(normal);
+                if(e.Type==8) normal=(normal+Vector3.One)*.5f;
+                sum[0]=normal.X;sum[1]=normal.Y;sum[2]=normal.Z;
+                if(e.Usage is 5 or 6) sum[3]=handedness;
+            }
+            int offset=stride.Take(e.Stream).Sum()+e.Offset;
+            int count=e.Type switch {0=>1,1 or 13=>2,2=>3,_=>4};
+            for(int k=0;k<count;k++)
+                if(e.Type is 13 or 14) BitConverter.TryWriteBytes(row.AsSpan(offset+2*k),(Half)sum[k]);
+                else if(e.Type is 5 or 8) row[offset+k]=(byte)Math.Clamp(MathF.Round(sum[k]*(e.Type==8?255:1)),0,255);
+                else BitConverter.TryWriteBytes(row.AsSpan(offset+4*k),sum[k]);
+        }
+        var w=fields.First(e=>e.Usage==1);var bones=fields.First(e=>e.Usage==2);
+        int width=w.Type==17?8:4;
+        var influences=new Dictionary<byte,double>();
+        for(int j=0;j<3;j++)
+        for(int k=0;k<width;k++)
+        {
+            byte bone=streams[bones.Stream][corners[j]*stride[bones.Stream]+bones.Offset+k];
+            int strength=streams[w.Stream][corners[j]*stride[w.Stream]+w.Offset+k];
+            if(strength>0 && weights[j]>0) influences[bone]=influences.GetValueOrDefault(bone)+weights[j]*strength;
+        }
+        var selected=influences.OrderByDescending(p=>p.Value).ThenBy(p=>p.Key).Take(width).ToArray();
+        double total=selected.Sum(p=>p.Value),cumulative=0;int used=0;
+        int weightOffset=stride.Take(w.Stream).Sum()+w.Offset,boneOffset=stride.Take(bones.Stream).Sum()+bones.Offset;
+        for(int k=0;k<width;k++)
+        {
+            if(k<selected.Length) cumulative+=selected[k].Value;
+            int packed=total==0?0:(int)Math.Round(255*cumulative/total,MidpointRounding.AwayFromZero);
+            row[weightOffset+k]=(byte)(packed-used);row[boneOffset+k]=k<selected.Length?selected[k].Key:(byte)0;used=packed;
+        }
+        return row;
+    }
 }

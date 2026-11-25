@@ -72,7 +72,7 @@ internal static class SurfaceSkinning
     }
 
     internal static byte[] Apply(byte[] model,Dictionary<int,Dictionary<int,Dictionary<string,float>>> transfers,
-        IEnumerable<byte[]>? boneDonors=null)
+        IEnumerable<byte[]>? boneDonors=null,IReadOnlySet<string>? lockedBones=null)
     {
         if(transfers.Count==0)return model;
         var original=SecondSkinWriter.Parse(model);
@@ -96,12 +96,21 @@ internal static class SurfaceSkinning
             var names=palette.Select(i=>layout.BoneNames[i]).ToArray();
             foreach(var (vertex,weights) in vertices)
             {
-                var selected=weights.Where(p=>p.Value>0).OrderByDescending(p=>p.Value).ThenBy(p=>p.Key,StringComparer.Ordinal).Take(count).ToArray();
+                var locked=lockedBones==null ? new Dictionary<string,float>() : Read(original.S,original,mesh,vertex)
+                    .Where(p=>lockedBones.Contains(p.Key)).ToDictionary();
+                if(locked.Count>count) throw new InvalidDataException("Too many protected garment influences.");
+                var selected=locked.Concat(weights.Where(p=>p.Value>0 && !locked.ContainsKey(p.Key))
+                    .OrderByDescending(p=>p.Value).ThenBy(p=>p.Key,StringComparer.Ordinal).Take(count-locked.Count))
+                    .OrderByDescending(p=>p.Value).ThenBy(p=>p.Key,StringComparer.Ordinal).ToArray();
                 float total=selected.Sum(p=>p.Value);
                 if(!(total>0))throw new InvalidDataException("Empty contact skinning.");
-                var scaled=selected.Select(p=>255d*p.Value/total).ToArray();
+                int remaining=255-locked.Values.Sum(w=>(int)MathF.Round(255*w));
+                double freeTotal=selected.Where(p=>!locked.ContainsKey(p.Key)).Sum(p=>(double)p.Value);
+                var scaled=selected.Select(p=>locked.TryGetValue(p.Key,out float fixedValue) ? Math.Round(255d*fixedValue) :
+                    lockedBones==null ? 255d*p.Value/total : freeTotal>0 ? remaining*p.Value/freeTotal : 0).ToArray();
                 var packed=scaled.Select(v=>(int)Math.Floor(v)).ToArray();
-                foreach(int i in Enumerable.Range(0,packed.Length).OrderByDescending(i=>scaled[i]-packed[i]).Take(255-packed.Sum()))packed[i]++;
+                foreach(int i in Enumerable.Range(0,packed.Length).Where(i=>!locked.ContainsKey(selected[i].Key))
+                    .OrderByDescending(i=>scaled[i]-packed[i]).ThenBy(i=>selected[i].Key,StringComparer.Ordinal).Take(255-packed.Sum()))packed[i]++;
                 int at=Address(result,layout,mesh,vertex,weight),indices=Address(result,layout,mesh,vertex,bone);
                 Array.Clear(result,at,count);
                 Array.Clear(result,indices,count);

@@ -243,7 +243,7 @@ internal sealed class EquipRefits : IDisposable
     private static string Option(string preset,string shape,string slot,string revision,bool family=false) =>
         preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (family ? " Family Fit 1 " : slot switch
         {
-            "_top" or "_dwn" => " Motion Fit 1 ", "_glv" => " Skin Contact 4 ", "_sho" => " Skin Contact 1 ", _ => " "
+            "_top" or "_dwn" => " Motion Fit 2 ", "_glv" => " Skin Contact 4 ", "_sho" => " Skin Contact 1 ", _ => " "
         }) + revision[..Math.Min(12,revision.Length)];
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
@@ -392,7 +392,7 @@ internal sealed class EquipRefits : IDisposable
                 sourceBodyRevision ??= FamilyRefit.BodyRevision(bodies);
                 if(!sourceRevisions.TryGetValue(folder,out var sourceStamp) || Environment.TickCount64-sourceStamp.Checked>=1000)
                     sourceRevisions[folder]=sourceStamp=(Environment.TickCount64,StandaloneRefit.Revision(folder));
-                string revision=Hash("standalone-topology-first-v2|"+sourceBodyRevision+"|"+sourceStamp.Revision);
+                string revision=Hash("standalone-skirt-motion-v4|"+sourceBodyRevision+"|"+sourceStamp.Revision);
                 source=input with {Revision=revision};
             }
         }
@@ -430,7 +430,13 @@ internal sealed class EquipRefits : IDisposable
         var exports = new List<Export>();
         Directory.CreateDirectory(cache);
         Directory.CreateDirectory(familyCache);
-        foreach(var group in request.Items.Where(i=>i.Family!=null).GroupBy(i=>i.Family!.Directory,StringComparer.OrdinalIgnoreCase))
+        int Cost(string directory)
+        {
+            try { return StandaloneRefit.ModelCount(directory); }
+            catch { return int.MaxValue; } // Report malformed manifests inside the normal per-mod failure path.
+        }
+        foreach(var group in request.Items.Where(i=>i.Family!=null).GroupBy(i=>i.Family!.Directory,StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g=>Cost(g.Key)).ThenBy(g=>g.Key,StringComparer.OrdinalIgnoreCase))
         {
             token.ThrowIfCancellationRequested();
             var family=group.First().Family!;
@@ -438,6 +444,7 @@ internal sealed class EquipRefits : IDisposable
             string destination=Path.Combine(request.Root,directory);
             try
             {
+                var resolvedFits=new Dictionary<string,FamilyRefit.Result>();
                 StandaloneRefit.Build(family.Directory,destination,request.Shape,family.Revision,family.Settings,model=>
                 {
                     token.ThrowIfCancellationRequested();
@@ -446,15 +453,19 @@ internal sealed class EquipRefits : IDisposable
                     string output=Path.Combine(familyCache,key+".mdl");
                     if(File.Exists(output)) return File.ReadAllBytes(output);
                     string rig=model.Race.ToString("D4");
-                    var fit=FamilyRefit.Generate(input,model.GamePath,model.Slot,request.Targets,request.LegOptions,log,token,model.Race,
+                    var fit=FamilyRefit.GenerateCached(input,model.GamePath,model.Slot,request.Targets,request.LegOptions,log,token,model.Race,
                         model.Race==201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
-                        model.Race==201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"));
+                        model.Race==201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"),resolvedFits);
                     token.ThrowIfCancellationRequested();
                     Write(output,fit.Model);
                     log.Information("[Aetherform] Standalone {Path}: {Option}",model.GamePath,fit.Option);
                     return fit.Model;
                 },token);
                 exports.Add(new(directory,family,family.SourcePriority));
+                // Activate this complete mod on the main thread now. The next
+                // snapshot excludes it and starts the remaining source mods,
+                // so a large unrelated export cannot hold completed fits back.
+                return new(request,fits,exports,errors);
             }
             catch(Exception ex) when(ex is not OperationCanceledException)
             { errors.Add((Path.GetFileName(family.Directory),ex.GetBaseException().Message)); }
@@ -462,7 +473,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items.Where(i=>i.Family==null))
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "motion-top-v1|", "_dwn" => "motion-bottom-v1|", "_glv" => "skin-contact-glove-v4|", "_sho" => "skin-contact-shoe-v1|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Revision);
+            var key = Hash((item.Slot switch { "_top" => "motion-top-v2|", "_dwn" => "motion-bottom-v2|", "_glv" => "skin-contact-glove-v4|", "_sho" => "skin-contact-shoe-v1|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {

@@ -249,6 +249,40 @@ public static class FamilyRefit
     public static Result Generate(Input input, string gamePath, string slot,
         IReadOnlyDictionary<string,string> targets, string[] legOptions, IPluginLog log,
         CancellationToken token = default, ushort modelRace = 201, byte[]? deformer = null, byte[]? skeleton = null)
+        => GenerateCore(input,gamePath,slot,targets,legOptions,log,token,modelRace,deformer,skeleton,null);
+
+    // The cache belongs to one standalone export and one target shape. Separate
+    // size options often select the same closest source; solve that model once.
+    public static Result GenerateCached(Input input,string gamePath,string slot,
+        IReadOnlyDictionary<string,string> targets,string[] legOptions,IPluginLog log,
+        CancellationToken token,ushort modelRace,byte[]? deformer,byte[]? skeleton,Dictionary<string,Result> cache)
+    {
+        token.ThrowIfCancellationRequested();
+        // Gloves/shoes can be entirely protected. Keep their early identity
+        // check specific to the requested model, including its nail/foot shape.
+        if(slot is not ("_top" or "_dwn"))
+            return GenerateCore(input,gamePath,slot,targets,legOptions,log,token,modelRace,deformer,skeleton,cache);
+        var candidates=Options(input,gamePath).OrderBy(p=>p.File,StringComparer.OrdinalIgnoreCase).ToArray();
+        var selected=SecondSkinWriter.Parse(File.ReadAllBytes(input.File));
+        string signature=JsonSerializer.Serialize(new
+        {
+            slot,modelRace,input.FamilyHint,Candidates=candidates.Select(p=>p.File),
+            Materials=selected.MatNames.Order(),Attributes=selected.AttrNames,Shapes=selected.Shapes.Keys.Order(),
+            Bodies=input.Bodies.Order(),Targets=targets.OrderBy(p=>p.Key).Select(p=>new {p.Key,p.Value,Stamp=File.GetLastWriteTimeUtc(p.Value).Ticks}),
+            LegOptions=legOptions.Order(),Deformer=deformer==null?"":Convert.ToHexString(SHA256.HashData(deformer)),
+            Skeleton=skeleton==null?"":Convert.ToHexString(SHA256.HashData(skeleton))
+        });
+        string key="selection:"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature)));
+        if(cache.TryGetValue(key,out var reused))
+            return reused with {Option=candidates.First(p=>string.Equals(p.File,reused.SourceFile,StringComparison.OrdinalIgnoreCase)).Name};
+        var result=GenerateCore(input,gamePath,slot,targets,legOptions,log,token,modelRace,deformer,skeleton,cache);
+        cache[key]=result;
+        return result;
+    }
+
+    private static Result GenerateCore(Input input,string gamePath,string slot,
+        IReadOnlyDictionary<string,string> targets,string[] legOptions,IPluginLog log,
+        CancellationToken token,ushort modelRace,byte[]? deformer,byte[]? skeleton,Dictionary<string,Result>? cache)
     {
         if (slot is not ("_top" or "_dwn" or "_glv" or "_sho")) throw new InvalidDataException("Unsupported family refit slot.");
         bool keepEnds=slot is "_glv" or "_sho";
@@ -348,7 +382,7 @@ public static class FamilyRefit
         Choice? chosen=null;
         var selected=SecondSkinWriter.Parse(File.ReadAllBytes(input.File));
         var selectedMaterials=selected.MatNames.Order().ToArray();
-        foreach (var (name,file) in Options(input,gamePath))
+        foreach (var (name,file) in Options(input,gamePath).OrderBy(p=>p.File,StringComparer.OrdinalIgnoreCase))
         {
             token.ThrowIfCancellationRequested();
             if(!File.Exists(file)) continue;
@@ -389,6 +423,23 @@ public static class FamilyRefit
                 chosen=new(name,file,bytes,garment,chest,legs,distance,guideDistance,direct,ends);
         }
         if (chosen==null) throw new InvalidDataException("No gear option could be identified against the installed YAB/Rue bodies.");
+        string solvedKey="solved:"+string.Join('|',slot,modelRace,Convert.ToHexString(SHA256.HashData(chosen.Bytes)),chosen.Chest.Path,chosen.Legs.Path,
+            string.Join('|',targetBytes.OrderBy(p=>p.Key).Select(p=>p.Key+Convert.ToHexString(SHA256.HashData(p.Value)))),
+            deformer==null ? "" : Convert.ToHexString(SHA256.HashData(deformer)),skeleton==null ? "" : Convert.ToHexString(SHA256.HashData(skeleton)));
+        if(cache!=null && cache.TryGetValue(solvedKey,out var reused))
+            return reused with {SourceFile=chosen.File,Option=chosen.Name};
+        // Refine in the source pose, before solving. New vertices then sample
+        // the body deformation themselves instead of staying on flat fitted faces.
+        // Existing cuts remain sewn and authored hands/feet are never subdivided.
+        var pinned=chosen.Garment.MeshSpans.ToDictionary(span=>span.Mesh,span=>(IReadOnlySet<int>)(chosen.Ends?.Ends ?? new HashSet<int>())
+            .Where(v=>v>=span.BaseVertex && v<span.BaseVertex+span.Count).Select(v=>v-span.BaseVertex).ToHashSet());
+        var refined=DensitySubdivision.Apply(chosen.Bytes,chosen.Bytes,
+            new BodyDensity(targetBytes.Where(p=>p.Key is "_top" or "_dwn").Select(p=>p.Value)),[],held:pinned);
+        var refinedGarment=ModelPartReader.Read(refined) ?? throw new InvalidDataException("Refined family garment failed read-back.");
+        var refinedEnds=keepEnds ? KeepEnds.Read(slot,refinedGarment,refined) ??
+            throw new InvalidDataException("Refined garment lost its hand/foot bindings.") : null;
+        chosen=chosen with {Bytes=refined,Garment=refinedGarment,Ends=refinedEnds};
+        token.ThrowIfCancellationRequested();
         BodyRetarget.SlotPair[] selectedPairs=[Pair(chosen.Chest,"_top"),Pair(chosen.Legs,"_dwn")];
         // The source's skin carries its option shapes and cuts. Move it through
         // correspondence and adapt weights without the legacy rebuild, which
@@ -422,6 +473,8 @@ public static class FamilyRefit
         var weighted=BodyMotionTransfer.Apply(chosen.Bytes,fitted,Support,
             selectedPairs.Select(p=>p.SourceModel!),targetBytes,true,held);
         weighted=SkinSurfaceContact.Apply(chosen.Bytes,weighted,held:held);
+        weighted=SkirtMotionClearance.Apply(chosen.Bytes,weighted,targetBytes,
+            selectedPairs.Select(p=>p.SourceModel!),log,held:held);
         // Geometry and weights change while the original UVs and material paths
         // keep the source mod's texture and shader options connected.
         var model=weighted;
@@ -436,7 +489,9 @@ public static class FamilyRefit
             throw new InvalidDataException("The conversion lost option attributes ["+string.Join(", ",missingAttributes)+"] and shapes ["+string.Join(", ",missingShapes)+"].");
         string sourceBody=primarySlot=="_top" ? chosen.Chest.Path : chosen.Legs.Path;
         string sourceDirectory=input.Bodies.First(root=>sourceBody.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase));
-        return new(model,chosen.File,chosen.Name,chosen.Chest.Option.Label,chosen.Legs.Option.Label,
+        var result=new Result(model,chosen.File,chosen.Name,chosen.Chest.Option.Label,chosen.Legs.Option.Label,
             chosen.Distance*1000,chosen.SameTopology,sourceDirectory,Path.GetRelativePath(sourceDirectory,sourceBody));
+        if(cache!=null) cache[solvedKey]=result;
+        return result;
     }
 }

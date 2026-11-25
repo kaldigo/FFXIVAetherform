@@ -57,6 +57,15 @@ public static class GarmentFit
             morphed = BodyMotionTransfer.Apply(garment,morphed,morph,originals,bodies);
             var overlays=SkinOverlays.Find(garment);
             result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins,overlays);
+            // Seam retessellation also needs the rest-space lineage for draws
+            // that already met the density target and were not subdivided.
+            var restLayout=SecondSkinWriter.Parse(garment);
+            for(int mesh=restLayout.Lod0MeshIndex;mesh<restLayout.Lod0MeshIndex+restLayout.Lod0MeshCount;mesh++)
+            {
+                if(origins.ContainsKey(mesh) || SecondSkinWriter.IsBodySkinMaterial(restLayout.MatNames[BitConverter.ToUInt16(garment,restLayout.MeshStart+36*mesh+8)])) continue;
+                var rest=new GarmentClearance.Mesh(restLayout,mesh);
+                origins.Add(mesh,new(rest.P.Select(p=>p/1000).ToArray(),Enumerable.Range(0,rest.Indices.Length/3).ToArray()));
+            }
             PanelPeaks.Apply(garment,morphed,result,classification,NativeMorph.VanillaSurface,origins);
             var joins=ClothSubdivision.IdentifyJoins(SecondSkinWriter.Parse(garment),out bool unmatchedCut);
             bool sewnTop=slot=="_top" && (unmatchedCut || joins.Count>0) && SkinRoutes.For(garment)==null;
@@ -80,6 +89,8 @@ public static class GarmentFit
             }
         }
         result=SkinSurfaceContact.Apply(garment,result,origins);
+        if(slot is "_top" or "_dwn") result=SkirtMotionClearance.Apply(garment,result,bodies,
+            new[]{"_top","_dwn"}.Select(part=>File.ReadAllBytes(originals[part])),log,origins);
         if (wearer != null && !sharedMale)
             result = route.Back(result, wearer, out var refusal) ?? throw new InvalidDataException(refusal);
         if (ModelPartReader.Read(result) == null) throw new InvalidDataException("Generated model failed read-back.");

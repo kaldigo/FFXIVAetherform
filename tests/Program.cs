@@ -234,27 +234,29 @@ if(standaloneCheck)
     var options=test.GetProperty("legOptions").Deserialize<string[]>()!;
     var type=solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.FamilyRefit",true)!;
     var inputType=type.GetNestedType("Input")!;
+    var fitCache=(System.Collections.IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(typeof(string),type.GetNestedType("Result")!))!;
     int count=0;
     string output=Path.GetFullPath(args[2]);
     Aetherform.Geometry.StandaloneRefit.Build(source,output,"test-shape",Aetherform.Geometry.StandaloneRefit.Revision(source),settings,model=>
     {
         var input=Activator.CreateInstance(inputType,[source,model.File,"test",model.Settings,family.GetProperty("bodies").Deserialize<string[]>()!])!;
         byte[]? FileBytes(string property)=>test.TryGetProperty(property,out var value) ? File.ReadAllBytes(value.GetString()!) : null;
-        var fit=type.GetMethod("Generate")!.Invoke(null,[input,model.GamePath,model.Slot,targets,options,log,CancellationToken.None,model.Race,FileBytes("pbd"),FileBytes("rig")])!;
+        var fit=type.GetMethod("GenerateCached")!.Invoke(null,[input,model.GamePath,model.Slot,targets,options,log,CancellationToken.None,model.Race,FileBytes("pbd"),FileBytes("rig"),fitCache])!;
         var bytes=(byte[])fit.GetType().GetProperty("Model")!.GetValue(fit)!;
         var selectedFile=(string)fit.GetType().GetProperty("SourceFile")!.GetValue(fit)!;
-        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),bytes);
+        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),bytes,true);
         LodWriterCheck.CheckWeights(bytes);
         LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),bytes,model.Slot);
         Console.WriteLine($"Variant {++count}: {Path.GetFileName(model.File)} -> {fit.GetType().GetProperty("Option")!.GetValue(fit)}");
         return bytes;
     });
-    Console.WriteLine($"Standalone export completed with {count} clothing variants: {output}");
+    Console.WriteLine($"Standalone export completed with {count} clothing variants and {fitCache.Keys.Cast<string>().Count(k=>k.StartsWith("solved:"))} distinct fits: {output}");
     return;
 }
 var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())
 {
+    var caseTimer=System.Diagnostics.Stopwatch.StartNew();
     System.Collections.IDictionary? expectedKnots=null;
     var game = File.ReadAllBytes(test.GetProperty("model").GetString()!);
     LodWriterCheck.Run(solver.DeclaringType!.Assembly,game);
@@ -262,6 +264,8 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     var body = test.GetProperty("originals").Deserialize<Dictionary<string,string>>()!;
     var targets = test.GetProperty("targets").Deserialize<Dictionary<string,string>>()!;
     var options = test.GetProperty("legOptions").Deserialize<string[]>()!;
+    if(test.TryGetProperty("auditRefinement",out var auditRefinement) && auditRefinement.GetBoolean())
+        FamilyRefinementCheck.CheckSurface(solver.DeclaringType.Assembly,game,targets);
     ushort race = test.TryGetProperty("race", out var id) ? id.GetUInt16() : (ushort)201;
     byte[]? FileBytes(string property) => test.TryGetProperty(property, out var path) ? File.ReadAllBytes(path.GetString()!) : null;
     var classification = test.TryGetProperty("classification",out var recordPath)
@@ -316,7 +320,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
         var converted=familyType.GetMethod("Generate")!.Invoke(null,[input,family.GetProperty("gamePath").GetString()!,slot,targets,options,log,CancellationToken.None,race,FileBytes("pbd"),FileBytes("rig")])!;
         result=(byte[])converted.GetType().GetProperty("Model")!.GetValue(converted)!;
         string selectedFile=(string)converted.GetType().GetProperty("SourceFile")!.GetValue(converted)!;
-        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),result);
+        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),result,true);
         LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),result,slot);
         if(family.TryGetProperty("expectedKnownBody",out var expectedBody))
         {
@@ -331,6 +335,8 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     }
     else result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
     LodWriterCheck.CheckWeights(result);
+    if(test.TryGetProperty("clearanceBaseline",out var clearanceBaseline))
+        SkirtClearanceCheck.Run(solver.DeclaringType.Assembly,File.ReadAllBytes(clearanceBaseline.GetString()!),result);
     if(expectedKnots!=null) LodWriterCheck.CheckJoins(solver.DeclaringType!.Assembly,result,expectedKnots);
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
     if (result.SequenceEqual(game) && !test.TryGetProperty("family",out _)) throw new Exception("Unexpected identity fit.");
@@ -338,10 +344,17 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     string name = test.GetProperty("model").GetString()!;
     if (!hashes.TryGetValue(name,out var seen)) hashes.Add(name,seen = []);
     if (!seen.Add(hash)) throw new Exception("Different presets produced identical output for " + name);
-    Console.WriteLine($"{Path.GetFileName(name)} -> {result.Length} bytes, {hash[..12]}");
+    Console.WriteLine($"{Path.GetFileName(name)} -> {result.Length} bytes, {hash[..12]} ({caseTimer.Elapsed.TotalSeconds:F2} s including checks)");
 }
 public class QuietLog : DispatchProxy
 {
-    protected override object? Invoke(MethodInfo? method,object?[]? args) =>
-        method!.ReturnType != typeof(void) && method.ReturnType.IsValueType ? Activator.CreateInstance(method.ReturnType) : null;
+    protected override object? Invoke(MethodInfo? method,object?[]? args)
+    {
+        if(method!.Name=="Information" && args?[0] is string message && message.StartsWith("[Aetherform] Skirt movement clearance:"))
+        {
+            var values=((object[])args[1]!).AsEnumerable().GetEnumerator();
+            Console.WriteLine(System.Text.RegularExpressions.Regex.Replace(message,@"\{[^}]+\}",_=>values.MoveNext()?Convert.ToString(values.Current)!:"?"));
+        }
+        return method.ReturnType != typeof(void) && method.ReturnType.IsValueType ? Activator.CreateInstance(method.ReturnType) : null;
+    }
 }

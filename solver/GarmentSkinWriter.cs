@@ -98,7 +98,7 @@ internal static class GarmentSkinWriter
             draws.Add(new(mesh,rows.Count,format.Streams(rows),indices.ToArray(),subs,
                 replacements.ToDictionary(p=>p.Key,p=>p.Value.ToArray()),format.Declaration,format.Strides));
         }
-        foreach(var g in schedules) draws.Add(ClothJoinWriter.Build(morphed,rebound,g.Key,g.ToArray(),assembly));
+        foreach(var g in schedules) draws.Add(ClothJoinWriter.Build(morphed,rebound,g.Key,g.ToArray(),assembly,origins));
         return LodMeshWriter.Replace(rebound,draws);
     }
 }

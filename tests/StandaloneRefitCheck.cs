@@ -75,6 +75,8 @@ internal static class StandaloneRefitCheck
             groups[2]!["Containers"]![1]!["Files"]![game]="open.mdl";
             groups[3]!["Options"]![0]!["Files"]!["chara/equipment/e0543/model/c0101e0543_top.mdl"]="male.mdl";
             string manifest=Path.Combine(source,"meta.json");File.WriteAllText(manifest,meta.ToJsonString());
+            if(StandaloneRefit.ModelCount(source)!=5)
+                throw new Exception("Queue sizing lost default/combining models or counted textures and unsupported races");
             byte[] original=File.ReadAllBytes(manifest);
             string revision=StandaloneRefit.Revision(source);
             string destination=Path.Combine(root,StandaloneRefit.DirectoryName(source,"shape",revision));

@@ -4,4 +4,6 @@
   <ItemGroup><Compile Include="../solver/MotionWeights.cs" Link="MotionWeights.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../solver/StandaloneRefit.cs" Link="StandaloneRefit.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../solver/FamilyRefitOrder.cs" Link="FamilyRefitOrder.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../solver/ThighMotionEnvelope.cs" Link="ThighMotionEnvelope.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../solver/SkirtMotionWeights.cs" Link="SkirtMotionWeights.cs" /></ItemGroup>
 </Project>

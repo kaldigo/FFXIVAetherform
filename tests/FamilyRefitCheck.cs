@@ -5,6 +5,7 @@ internal static class FamilyRefitCheck
 {
     internal static void Run(Assembly assembly)
     {
+        FamilyRefinementCheck.Run(assembly);
         var api=Assembly.LoadFrom(Path.Combine(Path.GetDirectoryName(assembly.Location)!,"Penumbra.Api.dll"));
         var subscriber=api.GetType("Penumbra.Api.IpcSubscribers.GetAllModSettings",true)!;
         var invoke=subscriber.GetMethod("Invoke")!;

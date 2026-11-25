@@ -16,10 +16,18 @@ internal static class LodWriterCheck
         var held=(IReadOnlySet<int>)reading.GetType().GetProperty("Ends")!.GetValue(reading)!;
         var before=(float[])source.GetType().GetProperty("Positions")!.GetValue(source)!;
         var after=(float[])target.GetType().GetProperty("Positions")!.GetValue(target)!;
+        IEnumerable<object> Spans(object model)=>(model.GetType().GetProperty("MeshSpans")!.GetValue(model) as IEnumerable)!.Cast<object>();
+        int SpanValue(object span,string name)=>Convert.ToInt32(span.GetType().GetProperty(name)!.GetValue(span));
+        var targetStarts=Spans(target).ToDictionary(s=>SpanValue(s,"Mesh"),s=>SpanValue(s,"BaseVertex"));
+        var spans=Spans(source).ToArray();
         foreach(int vertex in held)
+        {
+            var span=spans.Single(s=>vertex>=SpanValue(s,"BaseVertex") && vertex<SpanValue(s,"BaseVertex")+SpanValue(s,"Count"));
+            int mapped=targetStarts[SpanValue(span,"Mesh")]+vertex-SpanValue(span,"BaseVertex");
             for(int axis=0;axis<3;axis++)
-                if(Math.Abs(before[3*vertex+axis]-after[3*vertex+axis])>1e-6f)
-                    throw new Exception($"Refit changed hand/foot vertex {vertex}, axis {axis}, by {1000*(after[3*vertex+axis]-before[3*vertex+axis])} mm");
+                if(Math.Abs(before[3*vertex+axis]-after[3*mapped+axis])>1e-6f)
+                    throw new Exception($"Refit changed hand/foot vertex {vertex}, axis {axis}, by {1000*(after[3*mapped+axis]-before[3*vertex+axis])} mm");
+        }
         var parse=proteus.GetType("Proteus.Services.SecondSkinWriter",true)!.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!;
         var oldLayout=parse.Invoke(null,[original]);var newLayout=parse.Invoke(null,[emitted]);
         var weights=engine.GetType("Aetherform.Geometry.SurfaceSkinning",true)!.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
@@ -39,7 +47,7 @@ internal static class LodWriterCheck
         Console.WriteLine($"{held.Count} hand/foot vertices retain their positions and weights.");
     }
 
-    internal static void CheckOptionTables(byte[] original,byte[] emitted)
+    internal static void CheckOptionTables(byte[] original,byte[] emitted,bool refined=false)
     {
         var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;
         object Parse(byte[] bytes)=>type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[bytes])!;
@@ -62,7 +70,8 @@ internal static class LodWriterCheck
             if(BitConverter.ToUInt16(original,a+8)!=BitConverter.ToUInt16(emitted,b+8))
                 throw new Exception("Refit changed an option-bearing mesh's material assignment");
             int vertices=BitConverter.ToUInt16(original,a);
-            if(vertices!=BitConverter.ToUInt16(emitted,b)) throw new Exception("Refit changed option-bearing vertex identities");
+            int nextVertices=BitConverter.ToUInt16(emitted,b);
+            if(refined ? nextVertices<vertices : nextVertices!=vertices) throw new Exception("Refit changed option-bearing vertex identities");
             int oldDecl=0x44+136*(Get(source,"Lod0MeshIndex")+ordinal);
             int newDecl=0x44+136*(Get(target,"Lod0MeshIndex")+ordinal);
             var elements=Enumerable.Range(0,17).Select(i=>oldDecl+8*i).TakeWhile(e=>original[e]!=255).ToArray();
@@ -102,8 +111,36 @@ internal static class LodWriterCheck
             }
             return result;
         }
-        if(!Shapes(source,sourceMeshes).SequenceEqual(Shapes(target,targetMeshes)))
+        if(!refined && !Shapes(source,sourceMeshes).SequenceEqual(Shapes(target,targetMeshes)))
             throw new Exception("Refit changed shape replacement indices");
+        if(refined)
+        {
+            // Original corners keep their authored shape replacements, even
+            // though subdivision changes their index-buffer positions.
+            SortedSet<string> OriginalCorners(object model,byte[] bytes,Dictionary<uint,int> meshes)
+            {
+                var result=new SortedSet<string>(StringComparer.Ordinal);
+                foreach(DictionaryEntry shape in (IDictionary)Field(model,"Shapes"))
+                foreach(var entry in (IEnumerable)shape.Value!)
+                {
+                    uint offset=(uint)entry.GetType().GetProperty("MeshIndexOffset")!.GetValue(entry)!;
+                    if(!meshes.TryGetValue(offset,out int ordinal)) continue;
+                    int sourceHeader=Get(source,"MeshStart")+36*(Get(source,"Lod0MeshIndex")+ordinal);
+                    int originalCount=BitConverter.ToUInt16(original,sourceHeader);
+                    foreach(var (at,replacement) in ((ushort,ushort)[])entry.GetType().GetProperty("Values")!.GetValue(entry)!)
+                    {
+                        int basis=BitConverter.ToUInt16(bytes,Get(model,"Ib")+2*((int)offset+at));
+                        if(basis<originalCount) result.Add($"{shape.Key}/{ordinal}/{basis}/{replacement}");
+                    }
+                }
+                return result;
+            }
+            if(!OriginalCorners(source,original,sourceMeshes).SetEquals(OriginalCorners(target,emitted,targetMeshes)))
+                throw new Exception("Refinement lost an authored corner's shape replacement");
+            var sourceNames=((IDictionary)Field(source,"Shapes")).Keys.Cast<string>().Order();
+            var targetNames=((IDictionary)Field(target,"Shapes")).Keys.Cast<string>().Order();
+            if(!sourceNames.SequenceEqual(targetNames)) throw new Exception("Refinement changed named shape options");
+        }
     }
 
     internal static void CheckWeights(byte[] mdl)
