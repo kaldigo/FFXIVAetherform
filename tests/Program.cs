@@ -336,6 +336,8 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
     }
     else result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
     LodWriterCheck.CheckWeights(result);
+    if(test.TryGetProperty("retainedMotionBaseline",out var retainedBaseline))
+        RetainedSkinMotionCheck.Run(solver.DeclaringType.Assembly,game,result,File.ReadAllBytes(retainedBaseline.GetString()!));
     if(test.TryGetProperty("clearanceBaseline",out var clearanceBaseline))
         SkirtClearanceCheck.Run(solver.DeclaringType.Assembly,File.ReadAllBytes(clearanceBaseline.GetString()!),result);
     if(expectedKnots!=null) LodWriterCheck.CheckJoins(solver.DeclaringType!.Assembly,result,expectedKnots);

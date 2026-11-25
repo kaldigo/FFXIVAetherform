@@ -58,7 +58,9 @@ internal static class BodyMotionTransfer
 
     internal static byte[] Apply(byte[] original,byte[] morphed,NativeMorph morph,
         IReadOnlyDictionary<string,string> originals,Dictionary<string,byte[]> targets)
-        => Apply(original,morphed,morph.MotionSupport,new[]{"_top","_dwn"}.Select(slot=>File.ReadAllBytes(originals[slot])),targets,false);
+        // Retained outfit skin must use the same body-motion conversion as its
+        // clothing. UV/material conversion alone leaves it on the vanilla rig.
+        => Apply(original,morphed,morph.MotionSupport,new[]{"_top","_dwn"}.Select(slot=>File.ReadAllBytes(originals[slot])),targets,true);
 
     internal static byte[] Apply(byte[] original,byte[] morphed,
         Func<Vector3,(Vector3 Source,Vector3 Target,float Weight)[]> motionSupport,

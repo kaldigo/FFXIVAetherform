@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Protects generated fits used as manual overrides. Any configured generated fit above the automatic refit priority keeps its enabled state, selected options and priority, even when a YAB/Rue standalone covers the same item. The same threshold protects standalone AF copies from regeneration and replacement handoffs. Fits at the automatic priority or below remain managed automatically.")
+                Changelog="Fixes movement gaps between retained outfit skin and clothing, including the Summer Sunset Beach Cover-up bra. Retained skin now receives the same AF body-motion weight conversion as its clothing, preserving fitted neutral geometry, UVs and options. Automatic vanilla top and leg fits regenerate with the corrected weights; manual overrides remain protected.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

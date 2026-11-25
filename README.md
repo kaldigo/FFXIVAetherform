@@ -27,6 +27,8 @@ Generated models appear under **Aetherform → Refits → Vanilla to Aetherform*
 
 Skirt-driven regions automatically reconcile their body influences against the source body and the final AF skin. The skirt's own animation weights and sewn boundaries stay fixed. A sampled local clearance pass accounts for additional relative thigh movement introduced by the conversion, preserving shape offsets and preventing reversed triangles. This uses a bounded thigh-motion model rather than playing back a particular idle. Both vanilla and family conversions use it, with separate cache revisions so earlier fits regenerate. Generation runs in the background and completed fits are cached.
 
+When an outfit retains its own skin geometry, that skin receives the same body-motion weight conversion as its clothing. This keeps authored contacts such as bra edges and visible breast skin moving together on the AF rig while preserving their fitted neutral geometry.
+
 Standalone exports with fewer model variants run first. Each complete mod activates before the next export starts, so completed fits do not wait for unrelated bulk conversions. Size options with the same compatible candidates reuse their source selection and completed geometry; glove and shoe protection remains specific to each requested model.
 
 A generated fit placed above the configured automatic refit priority is treated as a manual override. Its enabled state, selected option and priority are left to the user, including when a family refit covers the same item. The same threshold applies to standalone AF copies. At the automatic priority or below, fits continue to follow the selected body.
