@@ -5,6 +5,15 @@ internal static class StandaloneRefitCheck
 {
     internal static void Run()
     {
+        if(!Aetherform.RefitOverride.Protected(true,0,-1) ||
+            !Aetherform.RefitOverride.Protected(true,1,0) ||
+            Aetherform.RefitOverride.Protected(false,0,-1) ||
+            Aetherform.RefitOverride.Protected(true,-1,-1) ||
+            Aetherform.RefitOverride.Protected(true,-2,-1) ||
+            Aetherform.RefitOverride.Protected(true,0,0) ||
+            !Aetherform.RefitOverride.Protected(true,int.MaxValue,int.MinValue))
+            throw new Exception("Manual generated overrides or first-time managed activation were misclassified");
+        Console.WriteLine("Explicit higher-priority overrides are protected; new and normal managed fits remain automatic.");
         if(!FamilyRefitOrder.Prefer(true,.020f,.025f,false,.001f,.002f) ||
             FamilyRefitOrder.Prefer(false,.001f,.002f,true,.020f,.025f) ||
             !FamilyRefitOrder.Prefer(true,.005f,.010f,true,.020f,.025f) ||

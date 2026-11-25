@@ -75,6 +75,7 @@ if(familyCheck)
 if (editCheck)
 {
     var wrapAssembly = solver.DeclaringType!.Assembly;
+    RefitOverrideCheck.Run(Assembly.LoadFrom(Path.Combine(lib,"Aetherform.dll")));
     var clearanceType=wrapAssembly.GetType("Aetherform.Geometry.ClearanceSurface",true)!;
     var ray=clearanceType.GetMethod("Ray",BindingFlags.Instance|BindingFlags.NonPublic)!;
     bool Hits(float height,float limit)

@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Improves automatic skirt refits by adapting body-driven thigh movement while preserving skirt animation and sewn boundaries. Refines YAB/Rue garment geometry before fitting while retaining shapes and protected hands/feet. Fixes long refit queues: smaller standalone exports activate as soon as they finish, and repeated size options reuse source selection and completed fits.")
+                Changelog="Protects generated fits used as manual overrides. Any configured generated fit above the automatic refit priority keeps its enabled state, selected options and priority, even when a YAB/Rue standalone covers the same item. The same threshold protects standalone AF copies from regeneration and replacement handoffs. Fits at the automatic priority or below remain managed automatically.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

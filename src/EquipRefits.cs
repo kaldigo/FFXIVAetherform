@@ -215,6 +215,7 @@ internal sealed class EquipRefits : IDisposable
                         !metadata.TryGetProperty("AetherformSource",out var original)) continue;
                     string originalDirectory=original.GetString()!;
                     if(!Directory.Exists(Path.Combine(root,originalDirectory))) continue;
+                    if(ProtectedOverride(directory)) continue;
                     var active=collectionSettings.GetValueOrDefault(directory).Options ?? [];
                     var input=FamilySource(root,originalDirectory,path,true,active);
                     if(input!=null && (metadata.GetProperty("AetherformShape").GetString()!=shape ||
@@ -344,11 +345,12 @@ internal sealed class EquipRefits : IDisposable
 
     private bool ApplySettings(Guid collection,string dir,string? option,int? requestedPriority=null)
     {
+        int fitPriority=requestedPriority ?? priority;
+        if(ProtectedOverride(dir)) return false;
         var (code,current)=pi.GetIpcSubscriber<Guid,string,string,bool,bool,int,
             (int,(bool,int,Dictionary<string,List<string>>,bool,bool)?)>("Penumbra.GetCurrentModSettingsWithTemp").InvokeFunc(collection,dir,"",false,true,0);
         Ok(code);
         bool changed=false;
-        int fitPriority=requestedPriority ?? priority;
         if(option!=null)
         {
             if(current?.Item2!=fitPriority)
@@ -360,6 +362,9 @@ internal sealed class EquipRefits : IDisposable
         { Ok(pi.GetIpcSubscriber<Guid,string,string,bool,int>("Penumbra.TrySetMod.V5").InvokeFunc(collection,dir,"",option!=null)); changed=true; }
         return changed;
     }
+
+    private bool ProtectedOverride(string directory) =>
+        RefitOverride.Protected(collectionSettings.TryGetValue(directory,out var settings),settings.Priority,priority);
 
     private bool Vanilla(Guid id, string path) => string.Equals(Resolved(id,path),path,StringComparison.OrdinalIgnoreCase);
 
@@ -577,6 +582,7 @@ internal sealed class EquipRefits : IDisposable
     {
         string directory=export.Directory;
         string source=Path.GetFileName(export.Source.Directory);
+        if(ProtectedOverride(directory)) return;
         if(!mods.ContainsKey(directory))
         {
             Ok(pi.GetIpcSubscriber<string,int>("Penumbra.AddMod.V5").InvokeFunc(directory));
@@ -606,7 +612,7 @@ internal sealed class EquipRefits : IDisposable
             if(!root.TryGetProperty("Identifier",out var identifier) || identifier.GetGuid()!=StandaloneRefit.Identity(mod)) continue;
             string? original=root.TryGetProperty("AetherformSource",out var currentSource) ? currentSource.GetString() :
                 root.TryGetProperty("FamilySourceDirectory",out var legacySource) ? legacySource.GetString() : null;
-            if(string.Equals(original,source,StringComparison.OrdinalIgnoreCase)) previous.Add(mod);
+            if(string.Equals(original,source,StringComparison.OrdinalIgnoreCase) && !ProtectedOverride(mod)) previous.Add(mod);
         }
         bool wasEnabled=collectionSettings.GetValueOrDefault(directory).Enabled;
         StandaloneRefit.Activate(() =>

@@ -6,4 +6,5 @@
   <ItemGroup><Compile Include="../solver/FamilyRefitOrder.cs" Link="FamilyRefitOrder.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../solver/ThighMotionEnvelope.cs" Link="ThighMotionEnvelope.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../solver/SkirtMotionWeights.cs" Link="SkirtMotionWeights.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../src/RefitOverride.cs" Link="RefitOverride.cs" /></ItemGroup>
 </Project>
