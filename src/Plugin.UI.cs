@@ -87,7 +87,7 @@ public sealed partial class Plugin
     private void DrawBody()
     {
         if (!Collection()) return;
-        Controls.Row("refit", "Refit vanilla gear on equip", "Uses the chest and legs selected under Smallclothes in this collection.", () =>
+        Controls.Row("refit", "Refit gear on equip", "Fits vanilla and YAB/Rue gear to this collection's Smallclothes body.", () =>
         {
             bool enabled = !profiles.RefitDisabled.Contains(selected);
             if (Controls.Switch("enabled", enabled) == enabled) return;
@@ -97,7 +97,7 @@ public sealed partial class Plugin
             nextPoll = 0;
         });
         int priority=profiles.RefitPriority;
-        if(ImGui.InputInt("Generated refit priority",ref priority))
+        if(ImGui.InputInt("Minimum generated refit priority",ref priority))
         {
             profiles.RefitPriority=priority;
             Save();

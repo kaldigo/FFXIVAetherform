@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Prevents skin-clearance rays from reaching distant clothing and pulling exposed skin into dimples.")
+                Changelog="Adds automatic YAB/Rue-to-Aetherform standalone refits, prioritizes matching topology and selects the closest compatible size. Preserves tabs, options, textures and metadata, then disables the original mod in the current collection. Adds movement-aware weight conversion and separates family refits from vanilla refits.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

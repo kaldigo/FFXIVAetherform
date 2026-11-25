@@ -4,6 +4,18 @@ using System.Runtime.Loader;
 using System.Text.Json;
 using System.Security.Cryptography;
 
+if(args.Length==1 && args[0]=="--standalone-controls")
+{
+    StandaloneRefitCheck.Run();
+    return;
+}
+
+if(args.Length==1 && args[0]=="--motion-weights")
+{
+    MotionWeightsCheck.Run();
+    return;
+}
+
 if(args.Length==3 && args[0]=="--visible-clearance")
 {
     using var input=new BinaryReader(File.OpenRead(args[1]));
@@ -40,8 +52,10 @@ foreach (string part in selected.Keys)
 Console.WriteLine("Effective body checks passed (AF, other shared body, other racial body, and vanilla).");
 if (args.Length == 0) return;
 bool editCheck = args[0] == "--editable";
-var config = editCheck ? default : JsonDocument.Parse(File.ReadAllBytes(args[0])).RootElement;
-var lib = editCheck ? Path.GetFullPath(args[1]) : config.GetProperty("library").GetString()!;
+bool familyCheck = args[0] == "--family-controls";
+bool standaloneCheck = args[0] == "--standalone";
+var config = editCheck || familyCheck ? default : JsonDocument.Parse(File.ReadAllBytes(args[standaloneCheck ? 1 : 0])).RootElement;
+var lib = editCheck || familyCheck ? Path.GetFullPath(args[1]) : config.GetProperty("library").GetString()!;
 var dalamud = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher/addon/Hooks/dev");
 AssemblyLoadContext.Default.Resolving += (_, name) =>
 {
@@ -53,6 +67,11 @@ AssemblyLoadContext.Default.Resolving += (_, name) =>
     return null;
 };
 var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("Aetherform.Geometry.GarmentFit")!.GetMethod("Generate")!;
+if(familyCheck)
+{
+    FamilyRefitCheck.Run(solver.DeclaringType!.Assembly);
+    return;
+}
 if (editCheck)
 {
     var wrapAssembly = solver.DeclaringType!.Assembly;
@@ -205,6 +224,34 @@ if (editCheck)
     return;
 }
 var log = DispatchProxy.Create(solver.GetParameters().Single(p=>p.Name=="log").ParameterType, typeof(QuietLog));
+if(standaloneCheck)
+{
+    var test=config.GetProperty("cases")[0];
+    var family=test.GetProperty("family");
+    string source=family.GetProperty("directory").GetString()!;
+    var settings=family.GetProperty("settings").Deserialize<Dictionary<string,List<string>>>()!;
+    var targets=test.GetProperty("targets").Deserialize<Dictionary<string,string>>()!;
+    var options=test.GetProperty("legOptions").Deserialize<string[]>()!;
+    var type=solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.FamilyRefit",true)!;
+    var inputType=type.GetNestedType("Input")!;
+    int count=0;
+    string output=Path.GetFullPath(args[2]);
+    Aetherform.Geometry.StandaloneRefit.Build(source,output,"test-shape",Aetherform.Geometry.StandaloneRefit.Revision(source),settings,model=>
+    {
+        var input=Activator.CreateInstance(inputType,[source,model.File,"test",model.Settings,family.GetProperty("bodies").Deserialize<string[]>()!])!;
+        byte[]? FileBytes(string property)=>test.TryGetProperty(property,out var value) ? File.ReadAllBytes(value.GetString()!) : null;
+        var fit=type.GetMethod("Generate")!.Invoke(null,[input,model.GamePath,model.Slot,targets,options,log,CancellationToken.None,model.Race,FileBytes("pbd"),FileBytes("rig")])!;
+        var bytes=(byte[])fit.GetType().GetProperty("Model")!.GetValue(fit)!;
+        var selectedFile=(string)fit.GetType().GetProperty("SourceFile")!.GetValue(fit)!;
+        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),bytes);
+        LodWriterCheck.CheckWeights(bytes);
+        LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),bytes,model.Slot);
+        Console.WriteLine($"Variant {++count}: {Path.GetFileName(model.File)} -> {fit.GetType().GetProperty("Option")!.GetValue(fit)}");
+        return bytes;
+    });
+    Console.WriteLine($"Standalone export completed with {count} clothing variants: {output}");
+    return;
+}
 var hashes = new Dictionary<string, HashSet<string>>();
 foreach (var test in config.GetProperty("cases").EnumerateArray())
 {
@@ -256,10 +303,37 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
             Console.WriteLine($"{test.GetProperty("model").GetString()}: {registered.Count} registered skin faces, {knots.Count} cloth knots.");
         }
     }
-    var result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
+    byte[] result;
+    if(test.TryGetProperty("family",out var family))
+    {
+        var familyType=solver.DeclaringType!.Assembly.GetType("Aetherform.Geometry.FamilyRefit",true)!;
+        var inputType=familyType.GetNestedType("Input")!;
+        var input=Activator.CreateInstance(inputType,[family.GetProperty("directory").GetString()!,test.GetProperty("model").GetString()!,"test",
+            family.GetProperty("settings").Deserialize<Dictionary<string,List<string>>>()!,family.GetProperty("bodies").Deserialize<string[]>()!])!;
+        if(family.TryGetProperty("installed",out var installed))
+            inputType.GetProperty("Installed")!.SetValue(input,installed.Deserialize<Dictionary<string,string>>());
+        if(family.TryGetProperty("familyHint",out var hint)) inputType.GetProperty("FamilyHint")!.SetValue(input,hint.GetBoolean());
+        var converted=familyType.GetMethod("Generate")!.Invoke(null,[input,family.GetProperty("gamePath").GetString()!,slot,targets,options,log,CancellationToken.None,race,FileBytes("pbd"),FileBytes("rig")])!;
+        result=(byte[])converted.GetType().GetProperty("Model")!.GetValue(converted)!;
+        string selectedFile=(string)converted.GetType().GetProperty("SourceFile")!.GetValue(converted)!;
+        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),result);
+        LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),result,slot);
+        if(family.TryGetProperty("expectedKnownBody",out var expectedBody))
+        {
+            var known=(string[])familyType.GetMethod("KnownBodyDirectories")!.Invoke(null,[Path.GetDirectoryName(family.GetProperty("directory").GetString()!)!])!;
+            if(!known.Contains(expectedBody.GetString(),StringComparer.OrdinalIgnoreCase)) throw new Exception("Compatible adjacent body was not discovered");
+        }
+        if(family.TryGetProperty("expectDifferentSource",out var expectDifferent) && expectDifferent.GetBoolean() &&
+            selectedFile.Equals(test.GetProperty("model").GetString(),StringComparison.OrdinalIgnoreCase))
+            throw new Exception("The family resolver did not select the closer source option");
+        foreach(string property in new[]{"SourceFile","Option","Chest","Legs","DistanceMm","SameTopology"})
+            Console.WriteLine($"{property} = {converted.GetType().GetProperty(property)!.GetValue(converted)}");
+    }
+    else result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
+    LodWriterCheck.CheckWeights(result);
     if(expectedKnots!=null) LodWriterCheck.CheckJoins(solver.DeclaringType!.Assembly,result,expectedKnots);
     if (test.TryGetProperty("output", out var output)) File.WriteAllBytes(output.GetString()!,result);
-    if (result.SequenceEqual(game)) throw new Exception("Unexpected identity fit.");
+    if (result.SequenceEqual(game) && !test.TryGetProperty("family",out _)) throw new Exception("Unexpected identity fit.");
     var hash = Convert.ToHexString(SHA256.HashData(result));
     string name = test.GetProperty("model").GetString()!;
     if (!hashes.TryGetValue(name,out var seen)) hashes.Add(name,seen = []);

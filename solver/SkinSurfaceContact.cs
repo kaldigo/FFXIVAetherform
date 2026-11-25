@@ -6,7 +6,8 @@ namespace Aetherform.Geometry;
 internal static class SkinSurfaceContact
 {
     internal static byte[] Apply(byte[] source,byte[] fit,
-        Dictionary<int,ClothSubdivision.Origins>? origins=null,CutSkinAssembly.Assembly? assembly=null)
+        Dictionary<int,ClothSubdivision.Origins>? origins=null,CutSkinAssembly.Assembly? assembly=null,
+        IReadOnlyDictionary<int,IReadOnlySet<int>>? held=null)
     {
         var old=SecondSkinWriter.Parse(source);var next=SecondSkinWriter.Parse(fit);
         var authoredRest=new List<Vector3>();
@@ -110,6 +111,9 @@ internal static class SkinSurfaceContact
                 if(!flush && !band) continue;
                 foreach(var (i,h) in hits)
                 {
+                    var pinned=held?.GetValueOrDefault(m);
+                    if(pinned?.Contains(i)==true || b.ShapeTargets.TryGetValue(i,out var replacements) &&
+                        replacements.Any(v=>pinned?.Contains(v)==true)) continue;
                     int t;
                     float x,y,z;
                     if(flush)

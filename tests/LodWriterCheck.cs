@@ -4,6 +4,141 @@ using System.Numerics;
 
 internal static class LodWriterCheck
 {
+    internal static void CheckHeldEnds(Assembly engine,byte[] original,byte[] emitted,string slot)
+    {
+        if(slot is not ("_glv" or "_sho")) return;
+        var proteus=Assembly.Load("Proteus");
+        var reader=proteus.GetType("Proteus.Services.ModelPartReader",true)!.GetMethod("Read")!;
+        var source=reader.Invoke(null,[original])!;var target=reader.Invoke(null,[emitted])!;
+        var keepEnds=proteus.GetType("Proteus.Services.KeepEnds",true)!.GetMethods(BindingFlags.Static|BindingFlags.NonPublic)
+            .Single(m=>m.Name=="Read" && m.GetParameters().Length==3);
+        var reading=keepEnds.Invoke(null,[slot,source,original])!;
+        var held=(IReadOnlySet<int>)reading.GetType().GetProperty("Ends")!.GetValue(reading)!;
+        var before=(float[])source.GetType().GetProperty("Positions")!.GetValue(source)!;
+        var after=(float[])target.GetType().GetProperty("Positions")!.GetValue(target)!;
+        foreach(int vertex in held)
+            for(int axis=0;axis<3;axis++)
+                if(Math.Abs(before[3*vertex+axis]-after[3*vertex+axis])>1e-6f)
+                    throw new Exception($"Refit changed hand/foot vertex {vertex}, axis {axis}, by {1000*(after[3*vertex+axis]-before[3*vertex+axis])} mm");
+        var parse=proteus.GetType("Proteus.Services.SecondSkinWriter",true)!.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!;
+        var oldLayout=parse.Invoke(null,[original]);var newLayout=parse.Invoke(null,[emitted]);
+        var weights=engine.GetType("Aetherform.Geometry.SurfaceSkinning",true)!.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
+        foreach(var span in (IEnumerable)source.GetType().GetProperty("MeshSpans")!.GetValue(source)!)
+        {
+            int mesh=(int)span.GetType().GetProperty("Mesh")!.GetValue(span)!;
+            int start=(int)span.GetType().GetProperty("BaseVertex")!.GetValue(span)!;
+            int count=(int)span.GetType().GetProperty("Count")!.GetValue(span)!;
+            foreach(int vertex in held.Where(v=>v>=start && v<start+count))
+            {
+                var a=(Dictionary<string,float>)weights.Invoke(null,[original,oldLayout,mesh,vertex-start])!;
+                var b=(Dictionary<string,float>)weights.Invoke(null,[emitted,newLayout,mesh,vertex-start])!;
+                if(a.Keys.Union(b.Keys).Any(bone=>Math.Abs(a.GetValueOrDefault(bone)-b.GetValueOrDefault(bone))>1e-6f))
+                    throw new Exception("Refit changed authored hand or foot weights");
+            }
+        }
+        Console.WriteLine($"{held.Count} hand/foot vertices retain their positions and weights.");
+    }
+
+    internal static void CheckOptionTables(byte[] original,byte[] emitted)
+    {
+        var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;
+        object Parse(byte[] bytes)=>type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[bytes])!;
+        object Field(object model,string name)=>model.GetType().GetField(name)!.GetValue(model)!;
+        int Get(object model,string name)=>Convert.ToInt32(Field(model,name));
+        var source=Parse(original);var target=Parse(emitted);
+        if(!((string[])Field(source,"AttrNames")).SequenceEqual((string[])Field(target,"AttrNames")))
+            throw new Exception("Refit changed the option attribute table");
+        if(!((IEnumerable<string>)Field(source,"MatNames")).SequenceEqual((IEnumerable<string>)Field(target,"MatNames")))
+            throw new Exception("Refit changed source material paths used by texture or shader options");
+        var sourceMeshes=new Dictionary<uint,int>();var targetMeshes=new Dictionary<uint,int>();
+        int count=Get(source,"Lod0MeshCount");
+        if(count!=Get(target,"Lod0MeshCount")) throw new Exception("Refit changed the number of option-bearing meshes");
+        for(int ordinal=0;ordinal<count;ordinal++)
+        {
+            int a=Get(source,"MeshStart")+36*(Get(source,"Lod0MeshIndex")+ordinal);
+            int b=Get(target,"MeshStart")+36*(Get(target,"Lod0MeshIndex")+ordinal);
+            sourceMeshes.Add(BitConverter.ToUInt32(original,a+16),ordinal);
+            targetMeshes.Add(BitConverter.ToUInt32(emitted,b+16),ordinal);
+            if(BitConverter.ToUInt16(original,a+8)!=BitConverter.ToUInt16(emitted,b+8))
+                throw new Exception("Refit changed an option-bearing mesh's material assignment");
+            int vertices=BitConverter.ToUInt16(original,a);
+            if(vertices!=BitConverter.ToUInt16(emitted,b)) throw new Exception("Refit changed option-bearing vertex identities");
+            int oldDecl=0x44+136*(Get(source,"Lod0MeshIndex")+ordinal);
+            int newDecl=0x44+136*(Get(target,"Lod0MeshIndex")+ordinal);
+            var elements=Enumerable.Range(0,17).Select(i=>oldDecl+8*i).TakeWhile(e=>original[e]!=255).ToArray();
+            foreach(int element in elements.Where(e=>original[e+3] is 4 or 7))
+            {
+                int replacement=newDecl+element-oldDecl,stream=original[element],offset=original[element+1];
+                int end=elements.Where(e=>original[e]==stream && original[e+1]>offset).Select(e=>(int)original[e+1])
+                    .DefaultIfEmpty(original[a+32+stream]).Min();
+                int oldBuffer=Get(source,"Vb")+BitConverter.ToInt32(original,a+20+4*stream)+offset;
+                int newStream=emitted[replacement];
+                int newBuffer=Get(target,"Vb")+BitConverter.ToInt32(emitted,b+20+4*newStream)+emitted[replacement+1];
+                for(int vertex=0;vertex<vertices;vertex++)
+                    if(!original.AsSpan(oldBuffer+vertex*original[a+32+stream],end-offset)
+                        .SequenceEqual(emitted.AsSpan(newBuffer+vertex*emitted[b+32+newStream],end-offset)))
+                        throw new Exception("Refit changed texture coordinates or vertex colors used by source options");
+            }
+            int n=BitConverter.ToUInt16(original,a+12);
+            if(n!=BitConverter.ToUInt16(emitted,b+12)) throw new Exception("Refit dropped a visibility-controlled submesh");
+            for(int sub=0;sub<n;sub++)
+            {
+                int oldSub=Get(source,"SubmeshStart")+16*(BitConverter.ToUInt16(original,a+10)+sub);
+                int newSub=Get(target,"SubmeshStart")+16*(BitConverter.ToUInt16(emitted,b+10)+sub);
+                if(BitConverter.ToUInt32(original,oldSub+8)!=BitConverter.ToUInt32(emitted,newSub+8))
+                    throw new Exception("Refit changed an option's submesh visibility mask");
+            }
+        }
+        SortedDictionary<string,string> Shapes(object model,Dictionary<uint,int> meshes)
+        {
+            var result=new SortedDictionary<string,string>(StringComparer.Ordinal);
+            foreach(DictionaryEntry shape in (IDictionary)Field(model,"Shapes"))
+            foreach(var entry in (IEnumerable)shape.Value!)
+            {
+                uint offset=(uint)entry.GetType().GetProperty("MeshIndexOffset")!.GetValue(entry)!;
+                if(!meshes.TryGetValue(offset,out int mesh)) continue;
+                var values=((ushort,ushort)[])entry.GetType().GetProperty("Values")!.GetValue(entry)!;
+                result.Add(shape.Key+"/"+mesh,string.Join(',',values.Select(v=>$"{v.Item1}>{v.Item2}")));
+            }
+            return result;
+        }
+        if(!Shapes(source,sourceMeshes).SequenceEqual(Shapes(target,targetMeshes)))
+            throw new Exception("Refit changed shape replacement indices");
+    }
+
+    internal static void CheckWeights(byte[] mdl)
+    {
+        var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;
+        var model=type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[mdl])!;
+        object Field(string name)=>model.GetType().GetField(name)!.GetValue(model)!;
+        int Get(string name)=>Convert.ToInt32(Field(name));
+        var palettes=(ushort[][])Field("BoneTables");
+        var bones=(string[])Field("BoneNames");
+        int U(int at)=>BitConverter.ToUInt16(mdl,at);
+        int I(int at)=>BitConverter.ToInt32(mdl,at);
+        for(int mesh=Get("Lod0MeshIndex");mesh<Get("Lod0MeshIndex")+Get("Lod0MeshCount");mesh++)
+        {
+            int h=Get("MeshStart")+36*mesh,decl=0x44+136*mesh;
+            int Find(byte usage)=>Enumerable.Range(0,17).Select(i=>decl+8*i).First(i=>mdl[i]!=255 && mdl[i+3]==usage);
+            int w=Find(1),b=Find(2),width=mdl[w+2]==17?8:4;
+            int At(int e,int v)=>Get("Vb")+I(h+20+4*mdl[e])+v*mdl[h+32+mdl[e]]+mdl[e+1];
+            var palette=palettes[U(h+14)];
+            for(int vertex=0;vertex<U(h);vertex++)
+            {
+                int total=0;
+                for(int j=0;j<width;j++)
+                {
+                    int weight=mdl[At(w,vertex)+j];total+=weight;
+                    if(weight==0) continue;
+                    int local=mdl[At(b,vertex)+j];
+                    if(local>=palette.Length || palette[local]>=bones.Length)
+                        throw new Exception($"Invalid bone reference in mesh {mesh}, vertex {vertex}");
+                }
+                if(total!=0 && total!=255) throw new Exception($"Unnormalized weights in mesh {mesh}, vertex {vertex}");
+            }
+        }
+    }
+
     internal static void CheckJoins(Assembly assembly,byte[] mdl,IDictionary expected)
     {
         var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;

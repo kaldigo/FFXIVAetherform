@@ -1,6 +1,6 @@
 namespace Aetherform;
 
-// Only the vanilla -> Aetherform route is registered.
+// Game-body paths and the vanilla refit's persistent storage layout.
 internal static class VanillaToAetherform
 {
     internal const string SourceBody = "Vanilla";

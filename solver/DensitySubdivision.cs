@@ -77,10 +77,11 @@ internal static class DensitySubdivision
                 faces=next;
             }
             if(data.Count==0) continue;
-            var stride=Enumerable.Range(0,3).Select(s=>(int)morph[h+32+s]).ToArray();
+            int fittedHeader=refit.MeshStart+36*m;
+            var stride=Enumerable.Range(0,3).Select(s=>(int)morph[fittedHeader+32+s]).ToArray();
             var streams=stride.Select(s=>new byte[p.Count*s]).ToArray();
             for(int s=0;s<3;s++)
-                if(stride[s]>0) Buffer.BlockCopy(morph,refit.Vb+BitConverter.ToInt32(morph,h+20+4*s),streams[s],0,fit.P.Length*stride[s]);
+                if(stride[s]>0) Buffer.BlockCopy(morph,refit.Vb+BitConverter.ToInt32(morph,fittedHeader+20+4*s),streams[s],0,fit.P.Length*stride[s]);
             for(int i=0;i<data.Count;i++)
                 PanelStreams.Midpoint(streams,stride,refit.Decls[m],data[i].A,data[i].B,fit.P.Length+i);
             var indices=new List<ushort>();var variantRows=new List<byte[]>();var variantIds=new Dictionary<string,ushort>();

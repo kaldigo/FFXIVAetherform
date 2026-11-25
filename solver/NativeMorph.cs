@@ -159,6 +159,22 @@ internal sealed class NativeMorph
         return p+displacement;
     }
 
+    internal (Vector3 Source,Vector3 Target,float Weight)[] MotionSupport(Vector3 pointMm)
+    {
+        var map=Atlas.Value;
+        var hit=VanillaSurface.Nearest(pointMm);
+        int t=3*hit.Face;
+        BrushTransfer.ClosestOnTriangle(pointMm,VanillaSurface.Points[t],VanillaSurface.Points[t+1],
+            VanillaSurface.Points[t+2],out float a,out float b,out float c);
+        float[] weights=[a,b,c];
+        return Enumerable.Range(0,3).Select(j=>
+        {
+            int vertex=map.Corners[t+j];
+            var source=map.Rest[vertex].ModelUnits()*1000;
+            return (source,source+1000*delta[vertex],weights[j]);
+        }).ToArray();
+    }
+
     internal byte[] Apply(byte[] source)
     {
         var output=(byte[])source.Clone();

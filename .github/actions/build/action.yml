@@ -39,6 +39,12 @@ runs:
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         dotnet run --project tests/GeometryCheck.csproj -c Release -- --editable src/bin/Release/net10.0-windows
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
+        dotnet run --project tests/GeometryCheck.csproj -c Release --no-build -- --motion-weights
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+        dotnet run --project tests/GeometryCheck.csproj -c Release --no-build -- --family-controls src/bin/Release/net10.0-windows
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+        dotnet run --project tests/GeometryCheck.csproj -c Release --no-build -- --standalone-controls
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
         $actual=[Reflection.AssemblyName]::GetAssemblyName((Resolve-Path src/bin/Release/net10.0-windows/Aetherform.dll)).Version
         if ($actual.ToString() -ne $env:RELEASE_VERSION) { throw "Incorrect assembly version: $actual" }
         if ($LASTEXITCODE) { exit $LASTEXITCODE }

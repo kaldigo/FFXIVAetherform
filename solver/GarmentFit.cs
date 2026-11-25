@@ -50,9 +50,11 @@ public static class GarmentFit
         }
         else
         {
-            var morphed = new NativeMorph(bodies,chestOption,legOption).Apply(garment);
+            var morph = new NativeMorph(bodies,chestOption,legOption);
+            var morphed = morph.Apply(garment);
             MorphContinuity.Apply(garment,morphed);
             morphed=GarmentSupport.Apply(garment,morphed,classification);
+            morphed = BodyMotionTransfer.Apply(garment,morphed,morph,originals,bodies);
             var overlays=SkinOverlays.Find(garment);
             result = DensitySubdivision.Apply(garment,morphed,new BodyDensity(bodies.Where(b=>b.Key is "_top" or "_dwn").Select(b=>b.Value)),origins,overlays);
             PanelPeaks.Apply(garment,morphed,result,classification,NativeMorph.VanillaSurface,origins);
@@ -143,7 +145,7 @@ public static class GarmentFit
         return true;
     }
 
-    private static void ApplyLegShapes(byte[] body, string[] options)
+    internal static void ApplyLegShapes(byte[] body, string[] options)
     {
         bool hip = options.Contains("Hip Dips"), soft = options.Contains("Soft Butt");
         if (!hip && !soft) return;

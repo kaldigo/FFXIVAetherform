@@ -5,6 +5,48 @@ namespace Aetherform.Geometry;
 // Transfer contact weights through the same host triangle used for placement.
 internal static class SurfaceSkinning
 {
+    internal static byte[] PromoteInfluences(byte[] model)
+    {
+        var layout=SecondSkinWriter.Parse(model);
+        var draws=new List<LodMeshWriter.Draw>();
+        for(int mesh=layout.Lod0MeshIndex;mesh<layout.Lod0MeshIndex+layout.Lod0MeshCount;mesh++)
+        {
+            var weight=layout.Decls[mesh].First(e=>e.Usage==1);
+            if(weight.Type==17) continue;
+            var bone=layout.Decls[mesh].First(e=>e.Usage==2);
+            if(weight.Type is not (5 or 8) || bone.Type!=5) throw new InvalidDataException("Unsupported surface skinning format.");
+            var geometry=new GarmentClearance.Mesh(layout,mesh);
+            var format=new SkinVertexFormat(model,mesh,geometry.Indices);
+            int header=layout.MeshStart+36*mesh, count=geometry.P.Length;
+            var streams=new byte[3][];
+            for(int stream=0;stream<3;stream++)
+            {
+                int stride=model[header+32+stream];
+                streams[stream]=new byte[count*format.Strides[stream]];
+                int start=layout.Vb+BitConverter.ToInt32(model,header+20+4*stream);
+                var ends=layout.Decls[mesh].Where(e=>e.Stream==stream && e.Usage is 1 or 2)
+                    .Select(e=>e.Offset+4).Order().ToArray();
+                for(int vertex=0;vertex<count;vertex++)
+                {
+                    int from=0,to=vertex*format.Strides[stream];
+                    foreach(int end in ends)
+                    {
+                        Buffer.BlockCopy(model,start+vertex*stride+from,streams[stream],to,end-from);
+                        to+=end-from+4;from=end;
+                    }
+                    Buffer.BlockCopy(model,start+vertex*stride+from,streams[stream],to,stride-from);
+                }
+            }
+            int first=BitConverter.ToInt32(model,header+16);
+            var submeshes=Enumerable.Range(BitConverter.ToUInt16(model,header+10),BitConverter.ToUInt16(model,header+12))
+                .Select(sub=>(BitConverter.ToInt32(model,layout.SubmeshStart+16*sub)-first,BitConverter.ToInt32(model,layout.SubmeshStart+16*sub+4))).ToArray();
+            var shapes=layout.Shapes.SelectMany(s=>s.Value.Where(e=>e.MeshIndexOffset==first).Select(e=>(s.Key,e.Values)))
+                .GroupBy(s=>s.Key).ToDictionary(g=>g.Key,g=>g.SelectMany(s=>s.Values).ToArray());
+            draws.Add(new(mesh,count,streams,geometry.Indices.Select(i=>checked((ushort)i)).ToArray(),submeshes,shapes,format.Declaration,format.Strides));
+        }
+        return LodMeshWriter.Replace(model,draws);
+    }
+
     private static int Address(byte[] data,SecondSkinWriter.Source layout,int mesh,int vertex,SecondSkinWriter.VElem field)
     {
         int header=layout.MeshStart+36*mesh;
@@ -15,7 +57,7 @@ internal static class SurfaceSkinning
     {
         var weight=layout.Decls[mesh].First(f=>f.Usage==1);
         var bone=layout.Decls[mesh].First(f=>f.Usage==2);
-        if(weight.Type is not (5 or 17) || bone.Type!=weight.Type)
+        if(!(weight.Type is 5 or 8 && bone.Type==5 || weight.Type==17 && bone.Type==17))
             throw new InvalidDataException("Unsupported surface skinning format.");
         int at=Address(data,layout,mesh,vertex,weight),indices=Address(data,layout,mesh,vertex,bone);
         var palette=layout.BoneTables[BitConverter.ToUInt16(data,layout.MeshStart+36*mesh+14)];
@@ -29,18 +71,25 @@ internal static class SurfaceSkinning
         return result;
     }
 
-    internal static byte[] Apply(byte[] model,Dictionary<int,Dictionary<int,Dictionary<string,float>>> transfers)
+    internal static byte[] Apply(byte[] model,Dictionary<int,Dictionary<int,Dictionary<string,float>>> transfers,
+        IEnumerable<byte[]>? boneDonors=null)
     {
         if(transfers.Count==0)return model;
         var original=SecondSkinWriter.Parse(model);
         var required=transfers.ToDictionary(p=>p.Key,p=>p.Value.Values.SelectMany(w=>w.Keys).Distinct().ToArray());
+        foreach(var donor in boneDonors ?? [])
+        {
+            var names=SecondSkinWriter.Parse(donor).BoneNames.ToHashSet(StringComparer.Ordinal);
+            var supplied=required.ToDictionary(p=>p.Key,p=>p.Value.Where(names.Contains).ToArray());
+            model=SkinDrawBindings.Add(model,donor,original.MatNames[0],supplied,new HashSet<int>());
+        }
         var result=SkinDrawBindings.Add(model,model,original.MatNames[0],required,new HashSet<int>());
         var layout=SecondSkinWriter.Parse(result);
         foreach(var (mesh,vertices) in transfers)
         {
             var weight=layout.Decls[mesh].First(f=>f.Usage==1);
             var bone=layout.Decls[mesh].First(f=>f.Usage==2);
-            if(weight.Type is not (5 or 17) || bone.Type!=weight.Type)
+            if(!(weight.Type is 5 or 8 && bone.Type==5 || weight.Type==17 && bone.Type==17))
                 throw new InvalidDataException("Unsupported surface skinning format.");
             int count=weight.Type==17?8:4;
             var palette=layout.BoneTables[BitConverter.ToUInt16(result,layout.MeshStart+36*mesh+14)];
