@@ -244,7 +244,7 @@ internal sealed class EquipRefits : IDisposable
     private static string Option(string preset,string shape,string slot,string revision,bool family=false) =>
         preset.Replace(" / ", " + ") + " [" + shape[..12] + "]" + (family ? " Family Fit 1 " : slot switch
         {
-            "_top" or "_dwn" => " Motion Fit 3 ", "_glv" => " Skin Contact 4 ", "_sho" => " Skin Contact 1 ", _ => " "
+            "_top" or "_dwn" => " Motion Fit 4 ", "_glv" => " Skin Contact 4 ", "_sho" => " Skin Contact 1 ", _ => " "
         }) + revision[..Math.Min(12,revision.Length)];
 
     private bool SyncOptions(string root,Guid collection,string? shape,string? preset)
@@ -397,7 +397,7 @@ internal sealed class EquipRefits : IDisposable
                 sourceBodyRevision ??= FamilyRefit.BodyRevision(bodies);
                 if(!sourceRevisions.TryGetValue(folder,out var sourceStamp) || Environment.TickCount64-sourceStamp.Checked>=1000)
                     sourceRevisions[folder]=sourceStamp=(Environment.TickCount64,StandaloneRefit.Revision(folder));
-                string revision=Hash("standalone-skirt-motion-v4|"+sourceBodyRevision+"|"+sourceStamp.Revision);
+                string revision=Hash("standalone-shader-weights-v5|"+sourceBodyRevision+"|"+sourceStamp.Revision);
                 source=input with {Revision=revision};
             }
         }
@@ -478,7 +478,7 @@ internal sealed class EquipRefits : IDisposable
         foreach (var item in request.Items.Where(i=>i.Family==null))
         {
             token.ThrowIfCancellationRequested();
-            var key = Hash((item.Slot switch { "_top" => "motion-top-v3|", "_dwn" => "motion-bottom-v3|", "_glv" => "skin-contact-glove-v4|", "_sho" => "skin-contact-shoe-v1|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Revision);
+            var key = Hash((item.Slot switch { "_top" => "motion-top-v4|", "_dwn" => "motion-bottom-v4|", "_glv" => "skin-contact-glove-v4|", "_sho" => "skin-contact-shoe-v1|", _ => "" }) + request.Shape + item.Path + "|native-skin-v2|" + item.Revision);
             var output = Path.Combine(cache,key + ".mdl");
             try
             {

@@ -35,8 +35,14 @@ internal static class RetainedSkinMotionCheck
             {
                 var authored=Weights(source,a,m,v);
                 if(!authored.Keys.Any(n=>n.Contains("mune",StringComparison.Ordinal))) continue;
+                // This regression covers retained breast contacts. Independent
+                // skirt-clearance corrections may move vertices elsewhere.
+                if(q[v]!=Field<Vector3[]>(Draw(before,m),"P")[v])
+                    throw new Exception("The retained-skin motion correction changed neutral breast geometry");
                 var contact=contacts.MinBy(c=>Vector3.DistanceSquared(c.Point,p[v]));
                 if(Vector3.Distance(contact.Point,p[v])>1 || !Equal(authored,contact.Weights)) continue;
+                if(Field<Vector3[]>(Draw(b,contact.Mesh),"P")[contact.Vertex]!=Field<Vector3[]>(Draw(before,contact.Mesh),"P")[contact.Vertex])
+                    throw new Exception("The retained-skin motion correction changed a neutral breast/clothing contact");
                 var skin=Weights(output,b,m,v);var cloth=Weights(output,b,contact.Mesh,contact.Vertex);
                 if(!Equal(skin,cloth)) throw new Exception("Retained breast skin and its authored co-moving clothing acquired different motion weights");
                 converted|=skin.Keys.Except(authored.Keys).Any();pairs++;
@@ -52,9 +58,6 @@ internal static class RetainedSkinMotionCheck
         }
         if(pairs<3 || !converted || oldWorst<=newWorst+.1) throw new Exception("Retained-skin regression did not exercise the old breast/clothing mismatch");
         LodWriterCheck.CheckOptionTables(baseline,output);
-        foreach(int m in Enumerable.Range(start,count))
-            if(!Field<Vector3[]>(Draw(before,m),"P").SequenceEqual(Field<Vector3[]>(Draw(b,m),"P")))
-                throw new Exception("The retained-skin motion correction changed neutral geometry");
-        Console.WriteLine($"{pairs} retained breast/cloth contacts share packed weights; synthetic ±10 mm bone-translation gap {oldWorst:F3} -> {newWorst:F3} mm; neutral geometry, UVs and options unchanged.");
+        Console.WriteLine($"{pairs} retained breast/cloth contacts share packed weights; synthetic ±10 mm bone-translation gap {oldWorst:F3} -> {newWorst:F3} mm; neutral breast/contact geometry, UVs and options unchanged.");
     }
 }

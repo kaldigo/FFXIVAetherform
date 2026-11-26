@@ -219,7 +219,8 @@ internal static class SkirtMotionClearance
                 for(int k=0;k<3;k++) foreach(var (bone,w) in sites[first+k].Weights)
                     target[bone]=target.GetValueOrDefault(bone)+bary[k]*w;
                 var reference=references[vertex];var oldHost=BodyReference(reference.Point,offset>=drawnSites);
-                var fitted=SkirtMotionWeights.Fit(weights[vertex],reference.Weights,oldHost.Weights,target,owned);
+                int capacity=layout.Decls[m].First(e=>e.Usage==1).Type==17?8:4;
+                var fitted=SkirtMotionWeights.Fit(weights[vertex],reference.Weights,oldHost.Weights,target,owned,capacity);
                 foreach(int v in list)
                 {
                     var prior=weights[v];adapted[v]=weights[v]=fitted;
@@ -227,7 +228,7 @@ internal static class SkirtMotionClearance
                     {
                         if(used.Contains(shape) || held?.GetValueOrDefault(m)?.Contains(shape)==true) continue;
                         var variant=SurfaceSkinning.Read(fit,layout,m,shape);
-                        adapted[shape]=SkirtMotionWeights.Fit(variant,variant,prior,fitted,owned);
+                        adapted[shape]=SkirtMotionWeights.Fit(variant,variant,prior,fitted,owned,capacity);
                     }
                 }
             }

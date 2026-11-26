@@ -143,6 +143,42 @@ internal static class LodWriterCheck
         }
     }
 
+    internal static void CheckGarmentShaderWeights(byte[] source,byte[] mdl)
+    {
+        var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;
+        var model=type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[mdl])!;
+        object Field(string name)=>model.GetType().GetField(name)!.GetValue(model)!;
+        int Get(string name)=>Convert.ToInt32(Field(name));
+        var materials=(List<string>)Field("MatNames");
+        var original=type.GetMethod("Parse",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[source])!;
+        int originalStart=Convert.ToInt32(original.GetType().GetField("Lod0MeshIndex")!.GetValue(original));
+        int checkedVertices=0;
+        for(int mesh=Get("Lod0MeshIndex");mesh<Get("Lod0MeshIndex")+Get("Lod0MeshCount");mesh++)
+        {
+            int h=Get("MeshStart")+36*mesh,decl=0x44+136*mesh;
+            if((bool)type.GetMethod("IsBodySkinMaterial",BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)!
+                .Invoke(null,[materials[BitConverter.ToUInt16(mdl,h+8)]])!) continue;
+            int w=Enumerable.Range(0,17).Select(i=>decl+8*i).First(i=>mdl[i]!=255 && mdl[i+3]==1);
+            int stride=mdl[h+32+mdl[w]],start=Get("Vb")+BitConverter.ToInt32(mdl,h+20+4*mdl[w])+mdl[w+1];
+            int width=mdl[w+2]==17?8:4;
+            int originalDecl=0x44+136*(originalStart+mesh-Get("Lod0MeshIndex"));
+            int originalWeight=Enumerable.Range(0,17).Select(i=>originalDecl+8*i).First(i=>source[i]!=255 && source[i+3]==1);
+            // A source can deliberately use a custom eight-influence shader.
+            // Preserve its authored format; never widen ordinary four-wide cloth.
+            if(source[originalWeight+2]==17) continue;
+            if(width!=4) throw new Exception($"Conversion widened four-influence clothing mesh {mesh}");
+            for(int v=0;v<BitConverter.ToUInt16(mdl,h);v++)
+            {
+                int first=Enumerable.Range(0,4).Sum(i=>(int)mdl[start+v*stride+i]);
+                int total=Enumerable.Range(0,width).Sum(i=>(int)mdl[start+v*stride+i]);
+                if(total!=0 && first!=255)
+                    throw new Exception($"Clothing shader ignores weight mass in mesh {mesh}, vertex {v}: reads {first}/255");
+                checkedVertices++;
+            }
+        }
+        Console.WriteLine($"Authored clothing formats preserved; {checkedVertices} four-influence vertices, including shape replacements, retain normalized shader-visible weights.");
+    }
+
     internal static void CheckWeights(byte[] mdl)
     {
         var type=Assembly.Load("Proteus").GetType("Proteus.Services.SecondSkinWriter",true)!;

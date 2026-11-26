@@ -321,6 +321,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
         var converted=familyType.GetMethod("Generate")!.Invoke(null,[input,family.GetProperty("gamePath").GetString()!,slot,targets,options,log,CancellationToken.None,race,FileBytes("pbd"),FileBytes("rig")])!;
         result=(byte[])converted.GetType().GetProperty("Model")!.GetValue(converted)!;
         string selectedFile=(string)converted.GetType().GetProperty("SourceFile")!.GetValue(converted)!;
+        LodWriterCheck.CheckGarmentShaderWeights(File.ReadAllBytes(selectedFile),result);
         LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),result,true);
         LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),result,slot);
         if(family.TryGetProperty("expectedKnownBody",out var expectedBody))

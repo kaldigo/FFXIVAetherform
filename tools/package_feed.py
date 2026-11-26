@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Fixes movement gaps between retained outfit skin and clothing, including the Summer Sunset Beach Cover-up bra. Retained skin now receives the same AF body-motion weight conversion as its clothing, preserving fitted neutral geometry, UVs and options. Automatic vanilla top and leg fits regenerate with the corrected weights; manual overrides remain protected.")
+                Changelog="Fixes stretched clothing triangles in YAB/Rue conversions, including the Exarchic Coat of Healing. Four-influence clothing now keeps the weight format its shader reads; only body skin is automatically widened to eight influences. Skirt movement fitting respects the authored influence limit. Automatic family and vanilla top/leg fits regenerate with the correction; manual overrides remain protected.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

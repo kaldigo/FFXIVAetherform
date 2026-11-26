@@ -11,6 +11,11 @@ internal static class SurfaceSkinning
         var draws=new List<LodMeshWriter.Draw>();
         for(int mesh=layout.Lod0MeshIndex;mesh<layout.Lod0MeshIndex+layout.Lod0MeshCount;mesh++)
         {
+            // Character garment shaders read four influences. Only skin.shpk
+            // consumes the extra four; widening cloth leaves unread weight mass
+            // and pulls affected vertices toward the origin in game.
+            int material=BitConverter.ToUInt16(model,layout.MeshStart+36*mesh+8);
+            if(!SecondSkinWriter.IsBodySkinMaterial(layout.MatNames[material])) continue;
             var weight=layout.Decls[mesh].First(e=>e.Usage==1);
             if(weight.Type==17) continue;
             var bone=layout.Decls[mesh].First(e=>e.Usage==2);
