@@ -26,6 +26,8 @@ internal sealed class EquipRefits : IDisposable
     private readonly string cache;
     private readonly string familyCache;
     private readonly ClassificationStore classifications;
+    private readonly CustomFitStore customFits;
+    private CustomFitLibrary customCurrent=CustomFitLibrary.Empty;
     private readonly string gameVersion;
     private string manifestPath = "";
     private DateTime manifestTime;
@@ -33,9 +35,9 @@ internal sealed class EquipRefits : IDisposable
     private readonly Dictionary<string,string> defaults = [];
     private readonly HashSet<string> failures = [];
     private sealed record Item(string Path, string Output, string Slot, ushort Race, ClassificationStore.Entry Classification,
-        FamilyRefit.Input? Family = null)
+        FamilyRefit.Input? Family = null,string CustomRevision="")
     {
-        internal string Revision => Family?.Revision ?? Classification.Revision;
+        internal string Revision => Family?.Revision ?? (CustomRevision.Length==0?Classification.Revision:Hash(Classification.Revision+CustomRevision));
     }
     private Dictionary<string,string> installed = [];
     private Dictionary<string,(bool Enabled,int Priority,Dictionary<string,List<string>> Options,bool Inherited,bool Temporary)> collectionSettings = [];
@@ -45,8 +47,9 @@ internal sealed class EquipRefits : IDisposable
     private string? sourceBodyRevision;
     private readonly Dictionary<string,(long Checked,string Revision)> sourceRevisions = [];
     private sealed record Snapshot(Guid Collection, string Root, string Shape, Dictionary<string,string> Targets,
-        string ChestOption, string LegOption, string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key);
-    private sealed record Fit(Item Item, string Model);
+        string ChestOption, string LegOption, string[] LegOptions, string BodyDirectory, string Preset, Item[] Items, string Key,CustomFitLibrary Custom);
+    private sealed record VariantFit(string Id,string Name,string Model);
+    private sealed record Fit(Item Item, string Model,IReadOnlyList<VariantFit>? Variants=null);
     private sealed record Export(string Directory, FamilyRefit.Input Source, int Priority);
     private sealed record Batch(Snapshot Inputs, List<Fit> Fits, List<Export> Exports, List<(string Item, string Reason)> Errors);
     private Task<Batch>? job;
@@ -63,6 +66,7 @@ internal sealed class EquipRefits : IDisposable
     {
         this.pi = pi; this.data = data; this.objects = objects; this.log = log;
         classifications = new(config, message => log.Warning("{Message}",message));
+        customFits=new(config,message=>log.Warning("{Message}",message));
         cache = VanillaToAetherform.Cache(config);
         familyCache=Path.Combine(config,"refits","YAB-Rue","Aetherform");
         var versionFile = Path.Combine(data.GameData.DataPath.FullName, "..", "ffxivgame.ver");
@@ -71,6 +75,12 @@ internal sealed class EquipRefits : IDisposable
 
     private static string Hash(string input) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(input)));
     private static string Bare(string slot) => VanillaToAetherform.Bare(slot);
+    private string VanillaRevision(string stem)
+    {
+        string path=$"chara/equipment/e{stem.Substring(6,4)}/model/{stem}.mdl";
+        var revision=classifications.Get(path).Revision;var custom=customCurrent.Revision([path]);
+        return custom.Length==0?revision:Hash(revision+custom);
+    }
     private static bool GeneratedFit(string directory) => directory.StartsWith("AF Vanilla Fit ",StringComparison.Ordinal) ||
         directory.StartsWith(StandaloneRefit.Prefix,StringComparison.Ordinal) || directory.StartsWith("AF Family Fit ",StringComparison.Ordinal) || directory.StartsWith("Vanilla to Aetherform ",StringComparison.Ordinal);
 
@@ -98,6 +108,7 @@ internal sealed class EquipRefits : IDisposable
     public void Update(string root, string? body, HashSet<Guid> disabled,int configuredPriority)
     {
         priority=configuredPriority;
+        customFits.Poll();customCurrent=customFits.Current;
         classifications.Poll();
         var current = Capture(root, body, disabled, out bool drawing);
         if (drawing) return;
@@ -198,6 +209,7 @@ internal sealed class EquipRefits : IDisposable
         {
             var m = Equipment.Match(path);
             if (!m.Success || m.Groups["set"].Value is "0000" or "9903") continue;
+            customFits.Request(path);
             var slot = m.Groups["slot"].Value;
             ushort race = ushort.Parse(m.Groups["race"].Value);
             if (Path.IsPathFullyQualified(actual))
@@ -234,11 +246,11 @@ internal sealed class EquipRefits : IDisposable
             if (race != 101 && race is not (201 or 401 or 601 or 801 or 1001 or 1401 or 1601 or 1801)) continue;
             string output = race == 101 ? path.Replace("/c0101e", "/c0201e") : path;
             if (output != path && !Vanilla(id, output)) continue;
-            pieces[output] = new(path, output, slot, race, classifications.Get(path));
+            pieces[output] = new(path, output, slot, race, classifications.Get(path),CustomRevision:customCurrent.Revision([path]));
         }
         var items = pieces.Values.OrderBy(x => x.Path).ToArray();
         var key = Hash(id + "|" + root + "|" + shape + "|" + string.Join('|',items.Select(i => i.Path + i.Revision + JsonSerializer.Serialize(i.Family?.Settings) + i.Family?.SourcePriority)));
-        return new(id, root, shape, targets, labels["_top"], labels["_dwn"], legs, body, preset, items, key);
+        return new(id, root, shape, targets, labels["_top"], labels["_dwn"], legs, body, preset, items, key,customCurrent);
     }
 
     private static string Option(string preset,string shape,string slot,string revision,bool family=false) =>
@@ -282,6 +294,7 @@ internal sealed class EquipRefits : IDisposable
         key+="|"+Hash(string.Join('|',collectionSettings.Where(p=>p.Value.Enabled &&
             (!GeneratedFit(p.Key) || p.Key.StartsWith(StandaloneRefit.Prefix,StringComparison.Ordinal)))
             .OrderBy(p=>p.Key).Select(p=>p.Key+p.Value.Priority+JsonSerializer.Serialize(p.Value.Options))));
+        key+="|custom:"+customCurrent.CatalogRevision;
         if(key==synced) return false;
         foreach(var dir in mods.Keys.Where(s=>s.StartsWith("AF Vanilla Fit ",StringComparison.Ordinal) || familyStates.ContainsKey(s)))
         {
@@ -296,7 +309,7 @@ internal sealed class EquipRefits : IDisposable
             if(shape!=null && meta.TryGetProperty("Groups",out var groups))
             {
                 bool family=familyStates.TryGetValue(dir,out var source);
-                string revision=family ? source?.Revision ?? "unavailable" : classifications.Get(dir["AF Vanilla Fit ".Length..]+".mdl").Revision;
+                string revision=family ? source?.Revision ?? "unavailable" : VanillaRevision(dir["AF Vanilla Fit ".Length..]);
                 string option=Option(preset!,shape,dir[^4..],revision,family);
                 if(source!=null) fitPriority=FamilyPriority(source);
                 if(family) option=""; // Migrate legacy model-only overlays to standalone exports.
@@ -381,7 +394,7 @@ internal sealed class EquipRefits : IDisposable
             if(!Directory.Exists(folder)) {familySources[key]=null;return null;}
             if(selectedOptions!=null || !resolvedSources.TryGetValue(directory,out _))
             {
-                resolvedSources[directory]=FamilyRefit.ResolveFiles(folder,selectedOptions ?? setting.Options);
+                resolvedSources[directory]=FamilyRefit.ResolveFiles(folder,CustomFitOptions.NormalizeKnown(selectedOptions ?? setting.Options,customCurrent));
             }
             var file=resolvedSources[directory].GetValueOrDefault(gamePath);
             if(file!=null && File.Exists(file))
@@ -397,7 +410,10 @@ internal sealed class EquipRefits : IDisposable
                 sourceBodyRevision ??= FamilyRefit.BodyRevision(bodies);
                 if(!sourceRevisions.TryGetValue(folder,out var sourceStamp) || Environment.TickCount64-sourceStamp.Checked>=1000)
                     sourceRevisions[folder]=sourceStamp=(Environment.TickCount64,StandaloneRefit.Revision(folder));
-                string revision=Hash("standalone-shader-weights-v5|"+sourceBodyRevision+"|"+sourceStamp.Revision);
+                var paths=StandaloneRefit.GamePaths(folder);
+                foreach(var path in paths) customFits.Request(path);
+                string customRevision=customCurrent.Revision(paths);
+                string revision=Hash("standalone-shader-weights-v5|"+sourceBodyRevision+"|"+sourceStamp.Revision+(customRevision.Length==0?"":"|custom:"+customRevision));
                 source=input with {Revision=revision};
             }
         }
@@ -450,22 +466,33 @@ internal sealed class EquipRefits : IDisposable
             try
             {
                 var resolvedFits=new Dictionary<string,FamilyRefit.Result>();
+                var variants=new CustomFitOptions();
                 StandaloneRefit.Build(family.Directory,destination,request.Shape,family.Revision,family.Settings,model=>
                 {
                     token.ThrowIfCancellationRequested();
-                    var input=family with {File=model.File,Settings=model.Settings};
+                    var custom=variants.For(model);
+                    var input=family with {File=model.File,Settings=CustomFitOptions.NormalizeKnown(model.Settings,request.Custom),
+                        PinSource=custom!=null,PreparationKey=custom==null?"":custom.Bundle.Revision+custom.Variant.Id,
+                        Prepare=request.Custom.Revision([model.GamePath]).Length==0?null:bytes=>request.Custom.Prepare(model.GamePath,"family",bytes,custom?.Bundle,custom?.Variant)};
                     string key=Hash("standalone-model-v1|"+request.Shape+family.Revision+model.GamePath+model.File+JsonSerializer.Serialize(model.Settings));
                     string output=Path.Combine(familyCache,key+".mdl");
                     if(File.Exists(output)) return File.ReadAllBytes(output);
                     string rig=model.Race.ToString("D4");
-                    var fit=FamilyRefit.GenerateCached(input,model.GamePath,model.Slot,request.Targets,request.LegOptions,log,token,model.Race,
+                    FamilyRefit.Result Generate(FamilyRefit.Input candidate)=>FamilyRefit.GenerateCached(candidate,model.GamePath,model.Slot,request.Targets,request.LegOptions,log,token,model.Race,
                         model.Race==201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
                         model.Race==201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"),resolvedFits);
+                    FamilyRefit.Result fit;
+                    try {fit=Generate(input);}
+                    catch(Exception ex) when(ex is not OperationCanceledException && custom==null && input.Prepare!=null)
+                    {
+                        log.Warning("[Aetherform] Custom reference declined for {Path}; using the automatic fit: {Reason}",model.GamePath,ex.GetBaseException().Message);
+                        fit=Generate(input with {Prepare=null,PreparationKey="automatic-fallback"});
+                    }
                     token.ThrowIfCancellationRequested();
                     Write(output,fit.Model);
                     log.Information("[Aetherform] Standalone {Path}: {Option}",model.GamePath,fit.Option);
                     return fit.Model;
-                },token);
+                },token,meta=>variants.Append(meta,family.Directory,request.Custom));
                 exports.Add(new(directory,family,family.SourcePriority));
                 // Activate this complete mod on the main thread now. The next
                 // snapshot excludes it and starts the remaining source mods,
@@ -485,23 +512,23 @@ internal sealed class EquipRefits : IDisposable
                 if (!File.Exists(output))
                 {
                     if (failures.Contains(key)) { errors.Add((item.Path, "Previously declined for this shape.")); continue; }
-                    var selected = new Dictionary<string,string>();
-                    var originals = new Dictionary<string,string>();
-                    foreach (var slot in Required(item.Slot))
-                    {
-                        string file = Path.Combine(cache, Hash(gameVersion + Bare(slot)) + ".mdl");
-                        if (!File.Exists(file)) Write(file, Game(Bare(slot)));
-                        originals[slot] = file;
-                        selected[slot] = request.Targets.GetValueOrDefault(slot) ?? file;
-                    }
-                    string rig = item.Race == 101 ? "0201" : item.Race.ToString("D4");
-                    var result = GarmentFit.Generate(Game(item.Path), item.Slot, item.Race, originals, selected, request.LegOptions,
-                        item.Race == 201 ? null : Game("chara/xls/boneDeformer/human.pbd"),
-                        item.Race == 201 ? null : Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"), Path.Combine(cache,"bindings"), item.Classification.Data, log, request.ChestOption, request.LegOption);
+                    var result=SolveVanilla(request,item,token);
                     token.ThrowIfCancellationRequested();
                     Write(output,result);
                 }
-                fits.Add(new(item, output));
+                var variants=new List<VariantFit>();
+                var bundle=item.CustomRevision.Length==0?null:request.Custom.Match(item.Path,"vanilla",Game(item.Path));
+                if(bundle!=null) foreach(var variant in bundle.Recipe.Variants)
+                {
+                    string variantOutput=Path.Combine(cache,Hash(key+"|"+bundle.Revision+"|"+variant.Id)+".mdl");
+                    try
+                    {
+                        if(!File.Exists(variantOutput)) Write(variantOutput,SolveVanilla(request,item,token,bundle,variant));
+                        variants.Add(new(bundle.Recipe.Id+"/"+variant.Id,variant.Name,variantOutput));
+                    }
+                    catch(Exception ex) when(ex is not OperationCanceledException) {errors.Add((item.Path+" / "+variant.Name,ex.GetBaseException().Message));}
+                }
+                fits.Add(new(item, output,variants));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -513,6 +540,39 @@ internal sealed class EquipRefits : IDisposable
     }
 
     private byte[] Game(string path) => data.GetFile(path)?.Data ?? throw new FileNotFoundException(path);
+    private byte[] SolveVanilla(Snapshot request,Item item,CancellationToken token,CustomFitBundle? chosen=null,CustomFitVariant? variant=null)
+    {
+        token.ThrowIfCancellationRequested();
+        var selected=new Dictionary<string,string>();var originals=new Dictionary<string,string>();
+        foreach(var slot in Required(item.Slot))
+        {
+            string file=Path.Combine(cache,Hash(gameVersion+Bare(slot))+".mdl");
+            if(!File.Exists(file)) Write(file,Game(Bare(slot)));
+            originals[slot]=file;selected[slot]=request.Targets.GetValueOrDefault(slot)??file;
+        }
+        var source=Game(item.Path);var bundle=chosen??request.Custom.Match(item.Path,"vanilla",source);
+        string rig=item.Race==101?"0201":item.Race.ToString("D4");
+        byte[] Solve(byte[] prepared,GarmentClassification? classification)=>GarmentFit.Generate(prepared,item.Slot,item.Race,originals,selected,request.LegOptions,
+            item.Race==201?null:Game("chara/xls/boneDeformer/human.pbd"),
+            item.Race==201?null:Game($"chara/human/c{rig}/skeleton/base/b0001/skl_c{rig}b0001.sklb"),
+            Path.Combine(cache,"bindings"),classification,log,request.ChestOption,request.LegOption);
+        byte[] result;
+        try
+        {
+            var baked=request.Custom.Baked(item.Path,"vanilla",source,selected,request.ChestOption,request.LegOption,request.LegOptions,bundle,variant);
+            if(baked!=null) {token.ThrowIfCancellationRequested();return baked;}
+            byte[] prepared=request.Custom.Prepare(item.Path,"vanilla",source,bundle,variant);
+            var edit=variant??bundle?.Recipe.Default;
+            var classification=edit?.Classification is {} c ? GarmentClassification.Read(bundle!.Asset(c),Path.GetFileNameWithoutExtension(item.Path)):item.Classification.Data;
+            result=Solve(prepared,classification);
+        }
+        catch(Exception ex) when(ex is not OperationCanceledException && variant==null && bundle?.Recipe.Default!=null)
+        {
+            log.Warning("[Aetherform] Custom reference declined for {Path}; using the automatic fit: {Reason}",item.Path,ex.GetBaseException().Message);
+            result=Solve(source,item.Classification.Data);
+        }
+        token.ThrowIfCancellationRequested();return result;
+    }
     private static void Write(string path, byte[] bytes)
     {
         var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -538,6 +598,7 @@ internal sealed class EquipRefits : IDisposable
             var item = fit.Item;
             var stem = Path.GetFileNameWithoutExtension(item.Path);
             string dir = "AF Vanilla Fit " + stem;
+            if(ProtectedOverride(dir)) continue;
             string folder = Path.Combine(snapshot.Root,dir);
             int category = item.Slot switch { "_top" => 4, "_glv" => 5, "_dwn" => 7, "_sho" => 8, _ => 0 };
             var label = names?.Invoke(category,int.Parse(Equipment.Match(item.Path).Groups["set"].Value)) ?? stem;
@@ -563,6 +624,7 @@ internal sealed class EquipRefits : IDisposable
                 "models",Path.GetFileName(fit.Model));
             bool added = GarmentFit.SaveEditable(folder,item.Output,item.Path,item.Slot,snapshot.BodyDirectory,
                 option,snapshot.Preset,targets,File.Exists(legacy) ? legacy : fit.Model);
+            added|=CustomFitOptions.SaveVanilla(folder,item.Output,(fit.Variants??[]).Select(v=>new CustomFitOptions.VanillaVariant(v.Id,v.Name,v.Model)).ToArray());
             if (!mods.ContainsKey(dir))
             {
                 Ok(pi.GetIpcSubscriber<string,int>("Penumbra.AddMod.V5").InvokeFunc(dir));
@@ -588,8 +650,7 @@ internal sealed class EquipRefits : IDisposable
             Ok(pi.GetIpcSubscriber<string,int>("Penumbra.AddMod.V5").InvokeFunc(directory));
         }
         PlaceFamilyMod(snapshot.Root,directory);
-        var settings=StandaloneRefit.Defaults(StandaloneRefit.ReadManifest(Path.Combine(snapshot.Root,directory)));
-        foreach(var pair in export.Source.Settings) settings[pair.Key]=pair.Value;
+        var settings=CustomFitOptions.Selections(StandaloneRefit.ReadManifest(Path.Combine(snapshot.Root,directory)),export.Source.Settings,snapshot.Custom);
         void Enabled(string mod,bool enabled)
         {
             Ok(pi.GetIpcSubscriber<Guid,string,string,bool,int>("Penumbra.TrySetMod.V5")
@@ -646,6 +707,7 @@ internal sealed class EquipRefits : IDisposable
     public void Dispose()
     {
         stop.Cancel();
+        customFits.Dispose();
         try { job?.GetAwaiter().GetResult(); }
         catch (OperationCanceledException) { }
         finally { jobStop?.Dispose(); stop.Dispose(); }

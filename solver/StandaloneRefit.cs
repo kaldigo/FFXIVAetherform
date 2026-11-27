@@ -93,6 +93,9 @@ public static class StandaloneRefit
     public static int ModelCount(string source) => Objects(ReadManifest(source))
         .Where(o=>o["Files"] is JsonObject).Sum(o=>((JsonObject)o["Files"]!).Count(p=>IsSupported(p.Key,out _,out _)));
 
+    public static string[] GamePaths(string source)=>Objects(ReadManifest(source)).Where(o=>o["Files"] is JsonObject)
+        .SelectMany(o=>((JsonObject)o["Files"]!).Select(p=>p.Key)).Where(p=>IsSupported(p,out _,out _)).Distinct().Order().ToArray();
+
     // Keep the original available until the new mod is configured and enabled.
     public static void Activate(Action configure,Action<bool> enabled,bool wasEnabled,
         IReadOnlyList<Action<bool>> superseded,Action<Exception>? recoveryFailure=null)
@@ -115,7 +118,7 @@ public static class StandaloneRefit
     }
 
     public static void Build(string source,string destination,string shape,string revision,
-        Dictionary<string,List<string>> selected,Func<Model,byte[]> convert,CancellationToken token=default)
+        Dictionary<string,List<string>> selected,Func<Model,byte[]> convert,CancellationToken token=default,Action<JsonObject>? augment=null)
     {
         if(Directory.Exists(destination))
         {
@@ -136,6 +139,7 @@ public static class StandaloneRefit
         {
             string sourceRevision=Revision(source);
             var meta=ReadManifest(source);
+            augment?.Invoke(meta);
             var defaults=Defaults(meta);
             var contexts=new Dictionary<JsonObject,Dictionary<string,List<string>>>();
             Dictionary<string,List<string>> Context()=>defaults.ToDictionary(p=>p.Key,p=>p.Value.ToList());

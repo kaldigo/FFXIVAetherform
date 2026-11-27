@@ -81,6 +81,7 @@ if(familyCheck)
 if (editCheck)
 {
     var wrapAssembly = solver.DeclaringType!.Assembly;
+    CustomFitCheck.Run(Assembly.LoadFrom(Path.Combine(lib,"Aetherform.dll")),wrapAssembly);
     RefitOverrideCheck.Run(Assembly.LoadFrom(Path.Combine(lib,"Aetherform.dll")));
     var clearanceType=wrapAssembly.GetType("Aetherform.Geometry.ClearanceSurface",true)!;
     var ray=clearanceType.GetMethod("Ray",BindingFlags.Instance|BindingFlags.NonPublic)!;
@@ -314,6 +315,43 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
             Console.WriteLine($"{test.GetProperty("model").GetString()}: {registered.Count} registered skin faces, {knots.Count} cloth knots.");
         }
     }
+    Func<byte[],byte[]>? customPrepare=null;
+    if(test.TryGetProperty("customRecipe",out var customRecipe))
+    {
+        var engine=solver.DeclaringType!.Assembly;
+        var recipeType=engine.GetType("Aetherform.Geometry.CustomFitRecipe",true)!;
+        byte[] recipeBytes=File.ReadAllBytes(customRecipe.GetString()!);
+        object recipe=recipeType.GetMethod("Read")!.Invoke(null,[recipeBytes])!;
+        string Value(string name)=>(string)recipeType.GetProperty(name)!.GetValue(recipe)!;
+        var assetRoot=test.GetProperty("customAssets").GetString()!;
+        using var recipeJson=JsonDocument.Parse(recipeBytes);
+        var assets=new Dictionary<string,byte[]>();
+        void Assets(JsonElement node)
+        {
+            if(node.ValueKind==JsonValueKind.Object)
+            {
+                if(node.TryGetProperty("Sha256",out var hash) && node.TryGetProperty("Path",out var path))
+                    assets[hash.GetString()!]=File.ReadAllBytes(Path.Combine(assetRoot,path.GetString()!));
+                foreach(var p in node.EnumerateObject()) Assets(p.Value);
+            }
+            else if(node.ValueKind==JsonValueKind.Array) foreach(var n in node.EnumerateArray()) Assets(n);
+        }
+        Assets(recipeJson.RootElement);
+        var bundleType=engine.GetType("Aetherform.Geometry.CustomFitBundle",true)!;
+        object bundle=Activator.CreateInstance(bundleType,[recipe,Convert.ToHexStringLower(SHA256.HashData(recipeBytes)),assets])!;
+        var bundles=Array.CreateInstance(bundleType,1);bundles.SetValue(bundle,0);
+        var libraryType=engine.GetType("Aetherform.Geometry.CustomFitLibrary",true)!;
+        object library=Activator.CreateInstance(libraryType,[bundles])!;
+        object? variant=null;
+        if(test.TryGetProperty("customVariant",out var variantId))
+            variant=((Array)recipeType.GetProperty("Variants")!.GetValue(recipe)!).Cast<object>()
+                .Single(v=>(string)v.GetType().GetProperty("Id")!.GetValue(v)! == variantId.GetString());
+        customPrepare=bytes=>(byte[])libraryType.GetMethod("Prepare")!.Invoke(library,[Value("GamePath"),Value("SourceKind"),bytes,bundle,variant])!;
+        var edited=customPrepare(game);
+        if(edited.SequenceEqual(game)) throw new Exception("Custom fixture did not change its reference model");
+        LodWriterCheck.CheckWeights(edited);
+        Console.WriteLine($"Custom reference {Value("Id")}: {game.Length} -> {edited.Length} bytes before fitting.");
+    }
     byte[] result;
     if(test.TryGetProperty("family",out var family))
     {
@@ -321,15 +359,22 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
         var inputType=familyType.GetNestedType("Input")!;
         var input=Activator.CreateInstance(inputType,[family.GetProperty("directory").GetString()!,test.GetProperty("model").GetString()!,"test",
             family.GetProperty("settings").Deserialize<Dictionary<string,List<string>>>()!,family.GetProperty("bodies").Deserialize<string[]>()!])!;
+        if(customPrepare!=null)
+        {
+            inputType.GetProperty("Prepare")!.SetValue(input,customPrepare);
+            inputType.GetProperty("PinSource")!.SetValue(input,true);
+        }
         if(family.TryGetProperty("installed",out var installed))
             inputType.GetProperty("Installed")!.SetValue(input,installed.Deserialize<Dictionary<string,string>>());
         if(family.TryGetProperty("familyHint",out var hint)) inputType.GetProperty("FamilyHint")!.SetValue(input,hint.GetBoolean());
         var converted=familyType.GetMethod("Generate")!.Invoke(null,[input,family.GetProperty("gamePath").GetString()!,slot,targets,options,log,CancellationToken.None,race,FileBytes("pbd"),FileBytes("rig")])!;
         result=(byte[])converted.GetType().GetProperty("Model")!.GetValue(converted)!;
         string selectedFile=(string)converted.GetType().GetProperty("SourceFile")!.GetValue(converted)!;
-        LodWriterCheck.CheckGarmentShaderWeights(File.ReadAllBytes(selectedFile),result);
-        LodWriterCheck.CheckOptionTables(File.ReadAllBytes(selectedFile),result,true);
-        LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,File.ReadAllBytes(selectedFile),result,slot);
+        byte[] selectedReference=File.ReadAllBytes(selectedFile);
+        if(customPrepare!=null) selectedReference=customPrepare(selectedReference);
+        LodWriterCheck.CheckGarmentShaderWeights(selectedReference,result);
+        LodWriterCheck.CheckOptionTables(selectedReference,result,true);
+        LodWriterCheck.CheckHeldEnds(solver.DeclaringType.Assembly,selectedReference,result,slot);
         if(family.TryGetProperty("expectedKnownBody",out var expectedBody))
         {
             var known=(string[])familyType.GetMethod("KnownBodyDirectories")!.Invoke(null,[Path.GetDirectoryName(family.GetProperty("directory").GetString()!)!])!;
@@ -341,7 +386,7 @@ foreach (var test in config.GetProperty("cases").EnumerateArray())
         foreach(string property in new[]{"SourceFile","Option","Chest","Legs","DistanceMm","SameTopology"})
             Console.WriteLine($"{property} = {converted.GetType().GetProperty(property)!.GetValue(converted)}");
     }
-    else result = (byte[])solver.Invoke(null,[game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
+    else result = (byte[])solver.Invoke(null,[customPrepare?.Invoke(game)??game,slot,race,body,targets,options,FileBytes("pbd"),FileBytes("rig"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0]))!,"bindings"),classification,log,chestOption,legOption])!;
     LodWriterCheck.CheckWeights(result);
     if(test.TryGetProperty("retainedMotionBaseline",out var retainedBaseline))
         RetainedSkinMotionCheck.Run(solver.DeclaringType.Assembly,game,result,File.ReadAllBytes(retainedBaseline.GetString()!));

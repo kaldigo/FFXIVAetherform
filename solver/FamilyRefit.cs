@@ -82,6 +82,9 @@ public static class FamilyRefit
         public Dictionary<string,string> Installed { get; init; } = [];
         public bool FamilyHint { get; init; } = true;
         public int SourcePriority { get; init; }
+        public Func<byte[],byte[]>? Prepare { get; init; }
+        public string PreparationKey { get; init; } = "";
+        public bool PinSource { get; init; }
     }
     public sealed record Result(byte[] Model, string SourceFile, string Option, string Chest, string Legs,
         float DistanceMm, bool SameTopology,string BodyDirectory,string BodyFile,bool NoFitNeeded=false);
@@ -196,6 +199,7 @@ public static class FamilyRefit
     private static List<(string Name,string File)> Options(Input input, string gamePath)
     {
         var result = new List<(string,string)> { ("Selected", input.File) };
+        if(input.PinSource) return result;
         var snapshot=Groups(input.Directory);
         var groups=snapshot.Groups;
         bool defaultModel=snapshot.Defaults.TryGetValue(gamePath,out var defaultFile) &&
@@ -266,7 +270,7 @@ public static class FamilyRefit
         var selected=SecondSkinWriter.Parse(File.ReadAllBytes(input.File));
         string signature=JsonSerializer.Serialize(new
         {
-            slot,modelRace,input.FamilyHint,Candidates=candidates.Select(p=>p.File),
+            slot,modelRace,input.FamilyHint,input.Revision,input.PreparationKey,input.PinSource,Candidates=candidates.Select(p=>p.File),
             Materials=selected.MatNames.Order(),Attributes=selected.AttrNames,Shapes=selected.Shapes.Keys.Order(),
             Bodies=input.Bodies.Order(),Targets=targets.OrderBy(p=>p.Key).Select(p=>new {p.Key,p.Value,Stamp=File.GetLastWriteTimeUtc(p.Value).Ticks}),
             LegOptions=legOptions.Order(),Deformer=deformer==null?"":Convert.ToHexString(SHA256.HashData(deformer)),
@@ -292,7 +296,14 @@ public static class FamilyRefit
             var garment=ModelPartReader.Read(original) ?? throw new InvalidDataException("Unreadable glove or shoe.");
             var reading=KeepEnds.Read(slot,garment,original) ?? throw new InvalidDataException("Unreadable hand or foot weights.");
             if(!reading.LimbView.Parts.Any(p=>p.Triangles.Length>0))
-                return new(original,input.File,"Selected","","",0,false,"","",true);
+            {
+                var prepared=input.Prepare?.Invoke(original)??original;
+                var edited=ModelPartReader.Read(prepared) ?? throw new InvalidDataException("Unreadable custom hand/foot mesh.");
+                var ends=KeepEnds.Read(slot,edited,prepared) ?? throw new InvalidDataException("Unreadable custom hand/foot weights.");
+                if(ends.LimbView.Parts.Any(p=>p.Triangles.Length>0))
+                    throw new InvalidDataException("A protected hand/foot reference cannot introduce an unsupported body-fit region.");
+                return new(prepared,input.File,"Selected","","",0,false,"","",prepared.SequenceEqual(original));
+            }
         }
         input=input with {Bodies=DiscoverBodies(input,targets)};
         var route=new RacialModelBake.Route(modelRace,201,true);
@@ -423,6 +434,17 @@ public static class FamilyRefit
                 chosen=new(name,file,bytes,garment,chest,legs,distance,guideDistance,direct,ends);
         }
         if (chosen==null) throw new InvalidDataException("No gear option could be identified against the installed YAB/Rue bodies.");
+        if(input.Prepare!=null)
+        {
+            var bytes=input.Prepare(File.ReadAllBytes(chosen.File));
+            if(wearer!=null) bytes=route.Into(bytes,wearer,out var refusal) ?? throw new InvalidDataException(refusal);
+            var originalLayout=SecondSkinWriter.Parse(chosen.Bytes);var editedLayout=SecondSkinWriter.Parse(bytes);
+            if(!originalLayout.MatNames.SequenceEqual(editedLayout.MatNames) || originalLayout.AttrNames.Except(editedLayout.AttrNames).Any() ||
+                originalLayout.Shapes.Keys.Except(editedLayout.Shapes.Keys).Any())
+                throw new InvalidDataException("A custom reference mesh lost source materials, attributes or equipment shapes.");
+            var edited=ModelPartReader.Read(bytes) ?? throw new InvalidDataException("Unreadable custom family mesh.");
+            chosen=chosen with {Bytes=bytes,Garment=edited,Ends=keepEnds?KeepEnds.Read(slot,edited,bytes):null};
+        }
         string solvedKey="solved:"+string.Join('|',slot,modelRace,Convert.ToHexString(SHA256.HashData(chosen.Bytes)),chosen.Chest.Path,chosen.Legs.Path,
             string.Join('|',targetBytes.OrderBy(p=>p.Key).Select(p=>p.Key+Convert.ToHexString(SHA256.HashData(p.Value)))),
             deformer==null ? "" : Convert.ToHexString(SHA256.HashData(deformer)),skeleton==null ? "" : Convert.ToHexString(SHA256.HashData(skeleton)));

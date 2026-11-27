@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Corrects vanilla clothing motion-weight conversion around covered breast and hip areas. Source motion samples now include the stock bra and briefs instead of projecting onto distant exposed skin, preventing false local weight peaks. Conversion remains enabled and fitted neutral geometry is unchanged. Managed vanilla top and leg fits regenerate as Motion Fit 5; manual priority overrides remain protected.")
+                Changelog="Adds the custom-fit catalog with approved draped White Moonfire Happi and Summer Sunset Beach Cover-up meshes for all four breast sizes and both lower-body sizes. Finished fits select the reviewed size directly, preserve mod options/tabs and cache in the background. Rules and reference-mesh variants remain supported; mismatched bodies safely use the normal resolver.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)
