@@ -80,5 +80,25 @@
   "limitations": [
     "Controlled leg swings and deep sitting/crouching still report crotch contacts",
     "Live game physics remains unverified"
-  ]
+  ],
+  "drawVisibilityCorrection": {
+    "cause": "Split skin draw retained an empty submesh bone map from its formerly empty template",
+    "fix": "Populate the split draw bone map from all weighted default and equipment-shape vertices",
+    "checks": [
+      {
+        "size": "medium",
+        "allActiveDrawBoneMapsComplete": true,
+        "includesShapeVertices": true,
+        "brokenPublicationRejected": true
+      },
+      {
+        "size": "large",
+        "allActiveDrawBoneMapsComplete": true,
+        "includesShapeVertices": true,
+        "brokenPublicationRejected": true
+      }
+    ],
+    "reviewedSurfaceUnchanged": true,
+    "liveGameRetest": "pending"
+  }
 }
