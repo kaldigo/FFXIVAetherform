@@ -1,0 +1,18 @@
+name: Validate custom fit catalog
+on:
+  push:
+    branches: [custom-fits]
+  pull_request:
+    branches: [custom-fits]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python .catalog/validate.py check .
