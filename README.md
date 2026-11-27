@@ -1,3 +1,7 @@
+# Custom fits temporarily disabled
+
+All three custom fits (No.2 Type B Leggings, Summer Sunset Beach Cover-up and White Moonfire Happi) are disabled following in-game reports of rendering and UV issues. The active index is empty; clients fall back to the automatic resolver after refreshing the catalog. Recipes remain under disabled/recipes for corrective work and are not served as active fits. Existing manual overrides retain their normal protection.
+
 # Custom fit catalog
 
 The `custom-fits` branch is a data-only catalog, separate from plugin releases.

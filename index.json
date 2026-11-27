@@ -1,29 +1,4 @@
 {
   "Schema": 1,
-  "Entries": [
-    {
-      "Id": "no2-type-b-leggings-custom-review",
-      "GamePath": "chara/equipment/e0649/model/c0201e0649_dwn.mdl",
-      "SourceKind": "vanilla",
-      "SourceHash": "270ef5fe16f789bfe478cf9df5c4f894733673bb3fe696ea15cbf7acff1efb13",
-      "Recipe": "recipes/no2-type-b-leggings-custom-review.json",
-      "Sha256": "755fab9292256e1178b224ae0ca541c4e8489c7b55df5f9931cd7b68254f0ccb"
-    },
-    {
-      "Id": "summer-sunset-beach-cover-up-draped",
-      "GamePath": "chara/equipment/e6137/model/c0201e6137_top.mdl",
-      "SourceKind": "vanilla",
-      "SourceHash": "9c8ec2e53780a9ccc142cae8a536cb7cf8bc8ea7734e7732d085b4e458812c70",
-      "Recipe": "recipes/summer-sunset-beach-cover-up-draped.json",
-      "Sha256": "a5c1ee53cf76a028742661fd6bd6551c95f13da62925058de4bec7b4a861dce7"
-    },
-    {
-      "Id": "white-moonfire-happi-draped",
-      "GamePath": "chara/equipment/e6092/model/c0201e6092_top.mdl",
-      "SourceKind": "vanilla",
-      "SourceHash": "cb8113f1516e99ce8b92f6c3691bec942cf0bce472820ad2cf3375d0daa03b6d",
-      "Recipe": "recipes/white-moonfire-happi-draped.json",
-      "Sha256": "882430af3b449fab774accc6611d01bc72cd16b2bb2f6c681529d5ddc7fc524c"
-    }
-  ]
+  "Entries": []
 }
