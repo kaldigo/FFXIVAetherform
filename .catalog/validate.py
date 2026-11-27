@@ -26,7 +26,7 @@ def validate(root, build=False):
     for path in sorted((root / "recipes").rglob("*.json")):
         data = path.read_bytes()
         r = json.loads(data)
-        assert r["Schema"] == 1
+        assert r["Schema"] in (1, 2)
         assert re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", r["Id"])
         match = re.fullmatch(r"chara/equipment/e(\d{4})/model/c(\d{4})e\1_(top|dwn|glv|sho)\.mdl", r["GamePath"])
         assert match and match[1] not in ("0000", "9903")
@@ -43,6 +43,25 @@ def validate(root, build=False):
         for v in variants + ([r["Default"]] if r.get("Default") is not None else []):
             assert re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", v["Id"])
             assert isinstance(v["Name"], str) and v["Name"].strip() and len(v["Name"]) <= 100
+            baked = v.get("Baked", [])
+            assert isinstance(baked, list) and len(baked) <= 128
+            assert not baked or (r["Schema"] == 2 and r["SourceKind"] == "vanilla")
+            fit_keys = set()
+            for f in baked:
+                assert f["Chest"] in ("XS", "Small", "Medium", "Large") and f["Legs"] in ("Medium", "Large")
+                flags = f["LegOptions"]
+                assert len(flags) == len(set(flags)) and set(flags) <= {"Hip Dips", "Soft Butt"}
+                key = (f["Chest"], f["Legs"], tuple(sorted(flags)))
+                assert key not in fit_keys, "Ambiguous finished fit"
+                fit_keys.add(key)
+                assert set(f["Targets"]) == {"_top", "_dwn"}
+                assert all(isinstance(h, list) and 1 <= len(h) <= 8 and
+                           all(isinstance(x, str) and re.fullmatch(r"[0-9a-f]{64}", x) for x in h)
+                           for h in f["Targets"].values())
+                a = f["Mesh"]
+                b = asset_path(root, a["Path"]).read_bytes()
+                assert re.fullmatch(r"[0-9a-f]{64}", a["Sha256"]) and digest(b) == a["Sha256"]
+                assert len(b) <= 64 * 1024 * 1024
             for field in ("Mesh", "Classification"):
                 if a := v.get(field):
                     assert field != "Classification" or r["SourceKind"] == "vanilla"

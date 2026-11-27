@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "e4b92a6da1dff58c51bb5aa9736dfa91d1c16c79",
+  "minimumPluginVersion": "0.4.0.37",
+  "reviewedGarments": [
+    "White Moonfire Happi",
+    "Summer Sunset Beach Cover-up"
+  ],
+  "finishedFits": 16,
+  "selectionChecks": 48,
+  "approvedMeshBytesPreserved": true,
+  "reviewSettings": [
+    "Yiggle",
+    "Hip Dips",
+    "Soft Butt"
+  ],
+  "validation": "Packed shader weights, metadata/options, 16 exact mesh selections for A/B/C, static rear clearance; not animation validation"
+}

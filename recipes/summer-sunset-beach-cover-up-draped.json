@@ -1,0 +1,196 @@
+{
+  "Schema": 2,
+  "Id": "summer-sunset-beach-cover-up-draped",
+  "GamePath": "chara/equipment/e6137/model/c0201e6137_top.mdl",
+  "SourceKind": "vanilla",
+  "SourceHash": "9c8ec2e53780a9ccc142cae8a536cb7cf8bc8ea7734e7732d085b4e458812c70",
+  "Default": {
+    "Id": "default",
+    "Name": "Draped",
+    "Baked": [
+      {
+        "Chest": "XS",
+        "Legs": "Medium",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "959fd9bf7b0a883bf0843069d5e794be13e0b9c319f1241f6cf6e5afe0a016c3"
+          ],
+          "_dwn": [
+            "0f8da7eab0efc482de1cdfeeb2967500aec2fd8fdde2f4f7f1584634970a3c8e",
+            "0d9ee444cef54b74e9a5705fe89d1b92eede842be2ded230282bd6d223d0cff8",
+            "5f98b1644b3b050affa50eb3a7ee856b3f8828d5f437f3a780423b127b82e9f8"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/5bc20bc55394da63623819e6f7877559af14843c00680f73b5345c5d6a6baa67.mdl",
+          "Sha256": "5bc20bc55394da63623819e6f7877559af14843c00680f73b5345c5d6a6baa67"
+        }
+      },
+      {
+        "Chest": "XS",
+        "Legs": "Large",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "959fd9bf7b0a883bf0843069d5e794be13e0b9c319f1241f6cf6e5afe0a016c3"
+          ],
+          "_dwn": [
+            "51f39e561049909706b1a26a5d16672ce508f4c2f55a675cb9a7d5f3acea1cda",
+            "bff904fceaef40a59122075185582deb85c87a4a29c3d00ef11d0688312b07d5",
+            "52d1a32cc45e634391fc97aea15a5ef49036b3195878500cc918add17caf0a8e"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/c9dbc984f8177e7d81354ed64a33c665a61e5ed4723f8b77a011a9549b671c84.mdl",
+          "Sha256": "c9dbc984f8177e7d81354ed64a33c665a61e5ed4723f8b77a011a9549b671c84"
+        }
+      },
+      {
+        "Chest": "Small",
+        "Legs": "Medium",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "37df23c694b15d01d2fa6fa58f09d2c218d1a02443e228e2685af33bc21fe4a5"
+          ],
+          "_dwn": [
+            "0f8da7eab0efc482de1cdfeeb2967500aec2fd8fdde2f4f7f1584634970a3c8e",
+            "0d9ee444cef54b74e9a5705fe89d1b92eede842be2ded230282bd6d223d0cff8",
+            "5f98b1644b3b050affa50eb3a7ee856b3f8828d5f437f3a780423b127b82e9f8"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/461ff0552238efc5a1d74955c095c738ed7f567dd2c505af8c3a6562cfd18016.mdl",
+          "Sha256": "461ff0552238efc5a1d74955c095c738ed7f567dd2c505af8c3a6562cfd18016"
+        }
+      },
+      {
+        "Chest": "Small",
+        "Legs": "Large",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "37df23c694b15d01d2fa6fa58f09d2c218d1a02443e228e2685af33bc21fe4a5"
+          ],
+          "_dwn": [
+            "51f39e561049909706b1a26a5d16672ce508f4c2f55a675cb9a7d5f3acea1cda",
+            "bff904fceaef40a59122075185582deb85c87a4a29c3d00ef11d0688312b07d5",
+            "52d1a32cc45e634391fc97aea15a5ef49036b3195878500cc918add17caf0a8e"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/2a4e7b71a396f49a3845243691711b631dcbf56f1b3c5f8bcb2d333b04a9e08f.mdl",
+          "Sha256": "2a4e7b71a396f49a3845243691711b631dcbf56f1b3c5f8bcb2d333b04a9e08f"
+        }
+      },
+      {
+        "Chest": "Medium",
+        "Legs": "Medium",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "9171914b3b62aac5e0e3dab43920d173cdc1b5dd389bc692acb0b04ff30c6876"
+          ],
+          "_dwn": [
+            "0f8da7eab0efc482de1cdfeeb2967500aec2fd8fdde2f4f7f1584634970a3c8e",
+            "0d9ee444cef54b74e9a5705fe89d1b92eede842be2ded230282bd6d223d0cff8",
+            "5f98b1644b3b050affa50eb3a7ee856b3f8828d5f437f3a780423b127b82e9f8"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/7598741682dc5466960ec26fec375a09317982e4056214a290d9dbbaa47db6e0.mdl",
+          "Sha256": "7598741682dc5466960ec26fec375a09317982e4056214a290d9dbbaa47db6e0"
+        }
+      },
+      {
+        "Chest": "Medium",
+        "Legs": "Large",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "9171914b3b62aac5e0e3dab43920d173cdc1b5dd389bc692acb0b04ff30c6876"
+          ],
+          "_dwn": [
+            "51f39e561049909706b1a26a5d16672ce508f4c2f55a675cb9a7d5f3acea1cda",
+            "bff904fceaef40a59122075185582deb85c87a4a29c3d00ef11d0688312b07d5",
+            "52d1a32cc45e634391fc97aea15a5ef49036b3195878500cc918add17caf0a8e"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/21552acb7f219529ce7a9544894ba105a0fbdb65747b1aa69676203045953c09.mdl",
+          "Sha256": "21552acb7f219529ce7a9544894ba105a0fbdb65747b1aa69676203045953c09"
+        }
+      },
+      {
+        "Chest": "Large",
+        "Legs": "Medium",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "5532d2ecf0106c3e211382124ece426cbef6f46d81e4e3ef3e8e5cbbe423b31a"
+          ],
+          "_dwn": [
+            "0f8da7eab0efc482de1cdfeeb2967500aec2fd8fdde2f4f7f1584634970a3c8e",
+            "0d9ee444cef54b74e9a5705fe89d1b92eede842be2ded230282bd6d223d0cff8",
+            "5f98b1644b3b050affa50eb3a7ee856b3f8828d5f437f3a780423b127b82e9f8"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/72de9cc0adeb0070f9190e47ce42b42fb19472c9bd60370bd26e2e78fc0676f3.mdl",
+          "Sha256": "72de9cc0adeb0070f9190e47ce42b42fb19472c9bd60370bd26e2e78fc0676f3"
+        }
+      },
+      {
+        "Chest": "Large",
+        "Legs": "Large",
+        "LegOptions": [
+          "Hip Dips",
+          "Soft Butt"
+        ],
+        "Targets": {
+          "_top": [
+            "5532d2ecf0106c3e211382124ece426cbef6f46d81e4e3ef3e8e5cbbe423b31a"
+          ],
+          "_dwn": [
+            "51f39e561049909706b1a26a5d16672ce508f4c2f55a675cb9a7d5f3acea1cda",
+            "bff904fceaef40a59122075185582deb85c87a4a29c3d00ef11d0688312b07d5",
+            "52d1a32cc45e634391fc97aea15a5ef49036b3195878500cc918add17caf0a8e"
+          ]
+        },
+        "Mesh": {
+          "Path": "meshes/bd413f97d6cb091d63d634f83db2d6b758df52d9a3a40f72b099727a26569a77.mdl",
+          "Sha256": "bd413f97d6cb091d63d634f83db2d6b758df52d9a3a40f72b099727a26569a77"
+        }
+      }
+    ]
+  },
+  "Variants": [
+    {
+      "Id": "original-automatic",
+      "Name": "Original automatic fit",
+      "Edits": []
+    }
+  ]
+}

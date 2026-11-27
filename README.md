@@ -101,3 +101,18 @@ commit. The data branch CI verifies its index and checksums. Geometry should
 also be checked against the local source using the headless regression harness:
 set `customRecipe` and `customAssets` on a local fixture. Never put copyrighted
 game source files in test fixtures or use placeholder examples as live entries.
+
+## Finished size-specific fits (schema 2)
+
+A vanilla plan can provide `Baked` entries containing `Chest` (XS, Small, Medium, Large), `Legs` (Medium, Large), exact `LegOptions`, a `Targets` map of `_top` / `_dwn` SHA-256 allowlists, and a checksum-pinned `Mesh` asset. These are finished AF meshes: the resolver selects and validates the matching reviewed result before calling the geometric solver. It never treats them as source reference meshes or fits them twice. Exact source model, native target files and shape flags must match; otherwise the normal reference/rule/automatic path remains available. Genital A/B/C labels do not create separate clothing sizes; explicitly reviewed native file hashes can share an entry. Buff or other unreviewed body/rig files do not match by label alone.
+
+Recipe schema 2 requires Aetherform 0.4.0.37 or later. Schema 1 remains valid for rules and source-reference replacements. Finished meshes currently apply to vanilla item recipes; family source recipes retain the reference-space authoring workflow. The download/cache checks include all finished meshes. A matching item downloads its complete small size set once in the background, preserving offline size changes and retaining the previous verified snapshot if an update fails.
+
+The first catalog entries are White Moonfire Happi and Summer Sunset Beach Cover-up: eight reviewed draped fits each, with Yiggle, Hip Dips and Soft Butt. The default uses the draped fit when compatible; an additional Original automatic fit option keeps the standard resolver available. Static comparison sheets used vanilla legs as a consistent reference; rear clearance was additionally sampled against matching native AF bottoms. Animation testing is separate.
+
+## Approved review sheets
+
+| Garment | Front | Rear | Angled | Rear angled |
+|---|---|---|---|---|
+| White Moonfire Happi | [View](previews/6092-front.png) | [View](previews/6092-back.png) | [View](previews/6092-three-quarter.png) | [View](previews/6092-rear-three-quarter.png) |
+| Summer Sunset Beach Cover-up | [View](previews/6137-front.png) | [View](previews/6137-back.png) | [View](previews/6137-three-quarter.png) | [View](previews/6137-rear-three-quarter.png) |
