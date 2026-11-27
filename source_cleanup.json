@@ -1,0 +1,439 @@
+{
+  "sourceHashes": {
+    "top": "2073b644bd3ebe2e21d84c98c622f9412e200642bad1310de4d20409355a2c6f",
+    "legs": "583bb953eff492854da1fa08f4f67a7204dc4b2fc7c189bede840085cf46ca58"
+  },
+  "description": "Native smallclothes flap faces, matched exactly to the previously reviewed flap-free reference. Includes bra ties, hip tabs and back flap roots. Tail submesh is removed separately by attribute.",
+  "faces": [
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 0
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 3
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 6
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 9
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 12
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 15
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 18
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 21
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 24
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 261
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 264
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 267
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 270
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 273
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 276
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 279
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 282
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 285
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 288
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 291
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 294
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 297
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 300
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 303
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 306
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 309
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 312
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 315
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 552
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 555
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 558
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 561
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 564
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 567
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 570
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 573
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 576
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 579
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 582
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 585
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 588
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 591
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 594
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 597
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 600
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 603
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 606
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 609
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 612
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 615
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 618
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 621
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 624
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 627
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 630
+    },
+    {
+      "slot": "top",
+      "mesh": 1,
+      "firstIndex": 633
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 0
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 3
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 6
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 9
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 12
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 15
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 18
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 78
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 123
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 126
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 129
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 132
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 135
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 138
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 243
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 288
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 291
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 294
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 297
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 300
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 303
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 351
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 354
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 357
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 360
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 363
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 366
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 369
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 372
+    },
+    {
+      "slot": "legs",
+      "mesh": 1,
+      "firstIndex": 375
+    }
+  ]
+}

@@ -34,6 +34,18 @@ Simplification must preserve both surface shape and deformation. A flat area may
 
 On 27 November 2026, the user reported trying this method on their current refit with promising results. The garment, assets and exact steps are to be captured from that experiment; no measured outcome has been recorded here yet.
 
+## Proposed gear reconstruction workflow
+
+Recorded on 27 November 2026 as an idea for later work. Do not implement this stage yet.
+
+1. Take the original piece of gear and increase its mesh density to twice or four times the density ultimately required.
+2. Use the gear's normal map to reconstruct actual surface geometry on that denser mesh, rather than merely splitting flat faces.
+3. Use the reconstructed high density surface as the reference for creating new garment topology at the body's required density.
+4. Transfer the gear's normals and UVs onto the new topology.
+5. Use this rebuilt, attributed garment as the starting piece for the body morph and subsequent constrained fitting.
+
+The deliberately denser intermediate surface separates shape reconstruction from the final topology layout. The existing bone-weight and physics requirements still apply when preparing the starting mesh. The exact meaning of twice or four times density and the transfer method remain implementation choices for later review.
+
 ## Next work
 
 - Capture the current successful experiment, including garment, source body, AF target and authoring steps.
@@ -42,4 +54,39 @@ On 27 November 2026, the user reported trying this method on their current refit
 - Evaluate constraints, silhouette, contacts, folding and intersections across intended AF presets.
 - Validate animation and physics, including bone-weight transitions and rigid attachments.
 - Prepare reusable meshes, bindings and constraints offline; measure runtime costs before deciding what belongs in automatic refits.
+
+## Vanilla body reference prototype
+
+`reference_surface.py` builds the vanilla body reference from the stock top and leg skin, using the close-fitting stock smallclothes for the covered regions. It removes the tail flap, reviewed bra and hip flaps, and detached decorative details. Six exposed flap roots are closed with 28 explicitly generated cap triangles. The neck, wrists and ankles remain open for their separate body parts.
+
+New vertices sample cubic PN patches built from the authored **mesh vertex normals**, so the dense surface gains real curvature between the original vertices. Original retained vertices remain fixed. Shared patch edges use common control points. Generated root caps stay linear, with shared boundary curves fixed, because their missing interior normals are not authored shape evidence. This implementation follows [Curved PN Triangles by Vlachos and colleagues](https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Vlachos01.pdf).
+
+The current density target is the mean physical triangle area of the AF Small chest and Medium B legs, independently for each slot. Conforming edge splits produce a conservative density: the generated reference is about 25 percent denser than this average target. This is an initial average density match; local AF density and AF connectivity are not matched yet. No AF shape displacement is applied to the vanilla reference.
+
+This stage does not yet sample a normal-map texture. UVs, bone names and interpolated weights are retained alongside each triangle's source identity and barycentric coordinates. The OBJ is for geometry review; the NPZ also contains skinning and provenance. Covered regions retain the smallclothes envelope rather than inventing hidden naked anatomy.
+
+### Reproduce locally
+
+Requires Python and the packages in `requirements.txt`. Inputs are schema 1 MDL inspection snapshots with original MDL paths and SHA-256 hashes. The cleanup manifest is specific to the verified vanilla inputs and rejects other hashes. No game files are distributed in this branch.
+
+Run from this folder in PowerShell:
+
+```powershell
+C:/Python310/python.exe reference_surface.py `
+  --vanilla-top '../.work/uv-stock-lines-20261119/decoded/stock-top.json' `
+  --vanilla-legs '../.work/uv-stock-lines-20261119/decoded/stock-dwn.json' `
+  --af-top '../.work/resolver-preparation-20261118/bodies/af_top_01.json' `
+  --af-legs '../.work/resolver-preparation-20261118/bodies/af_dwn_04.json' `
+  --output outputs/vanilla-reference-v1
+C:/Python310/python.exe render_review.py outputs/vanilla-reference-v1
+C:/Python310/python.exe -m unittest -v
+```
+
+The local output folder contains the curved OBJ, a flat subdivision control with identical connectivity, a cleaned source OBJ, an NPZ with UVs and weights, comparison renders and a full numerical report. Generated meshes and game assets stay outside Git.
+
+### Initial validation
+
+The first cleaned reference contains 30,675 triangles and 15,383 geometric vertices. It has no reversed or degenerate triangles under the per-face orientation checks, no nonmanifold edges, and no cracks between shared PN patch edges within numerical precision. Its five open boundary loops are the neck, wrists and ankles. No retained original vertex moved during alias welding. Maximum curvature displacement from the flat control is 7.16 mm.
+
+Regression tests cover planar preservation, curved shared-edge continuity, conforming density refinement and concave cap boundaries. Visual review compares the cleaned source, flat control and curved reference with geometry-derived shading. Global self-intersection, animation and physics validation remain future checks; triangle orientation checks do not certify these.
 
