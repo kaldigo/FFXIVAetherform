@@ -54,8 +54,9 @@ if (args.Length == 0) return;
 bool editCheck = args[0] == "--editable";
 bool familyCheck = args[0] == "--family-controls";
 bool standaloneCheck = args[0] == "--standalone";
-var config = editCheck || familyCheck ? default : JsonDocument.Parse(File.ReadAllBytes(args[standaloneCheck ? 1 : 0])).RootElement;
-var lib = editCheck || familyCheck ? Path.GetFullPath(args[1]) : config.GetProperty("library").GetString()!;
+bool motionReferenceCheck = args[0] == "--motion-reference";
+var config = editCheck || familyCheck || motionReferenceCheck ? default : JsonDocument.Parse(File.ReadAllBytes(args[standaloneCheck ? 1 : 0])).RootElement;
+var lib = editCheck || familyCheck || motionReferenceCheck ? Path.GetFullPath(args[1]) : config.GetProperty("library").GetString()!;
 var dalamud = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher/addon/Hooks/dev");
 AssemblyLoadContext.Default.Resolving += (_, name) =>
 {
@@ -67,6 +68,11 @@ AssemblyLoadContext.Default.Resolving += (_, name) =>
     return null;
 };
 var solver = Assembly.LoadFrom(Path.Combine(lib,"Proteus.Refit.dll")).GetType("Aetherform.Geometry.GarmentFit")!.GetMethod("Generate")!;
+if(motionReferenceCheck)
+{
+    BodyMotionReferenceCheck.Run(solver.DeclaringType!.Assembly,args.Skip(2));
+    return;
+}
 if(familyCheck)
 {
     FamilyRefitCheck.Run(solver.DeclaringType!.Assembly);

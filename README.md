@@ -29,6 +29,8 @@ Skirt-driven regions automatically reconcile their body influences against the s
 
 When an outfit retains its own skin geometry, that skin receives the same body-motion weight conversion as its clothing. This keeps authored contacts such as bra edges and visible breast skin moving together on the AF rig while preserving their fitted neutral geometry.
 
+Vanilla motion conversion samples the stock bra and briefs as well as exposed skin. These are motion references for covered areas, keeping breast and hip samples on their actual source surface. AF targets and YAB/Rue body references continue to use skin surfaces. See [the motion-reference investigation](docs/vanilla-motion-reference.md).
+
 Weight conversion preserves the clothing's authored influence format. Four-influence clothing stays within the four weights its shader reads, including the skirt-motion pass; only body skin is automatically widened to eight influences. This prevents unread weight mass from pulling clothing into spikes in game.
 
 Standalone exports with fewer model variants run first. Each complete mod activates before the next export starts, so completed fits do not wait for unrelated bulk conversions. Size options with the same compatible candidates reuse their source selection and completed geometry; glove and shoe protection remains specific to each requested model.

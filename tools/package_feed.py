@@ -17,7 +17,7 @@ url = f"{repo}/releases/download/{tag}/Aetherform.zip"
 manifest.update(AssemblyVersion=tag.removeprefix("v"),
                 IconUrl=f"https://raw.githubusercontent.com/kaldigo/FFXIVAetherform/{tag}/assets/icon.png",
                 DownloadLinkInstall=url, DownloadLinkUpdate=url, DownloadLinkTesting=url,
-                Changelog="Fixes stretched clothing triangles in YAB/Rue conversions, including the Exarchic Coat of Healing. Four-influence clothing now keeps the weight format its shader reads; only body skin is automatically widened to eight influences. Skirt movement fitting respects the authored influence limit. Automatic family and vanilla top/leg fits regenerate with the correction; manual overrides remain protected.")
+                Changelog="Corrects vanilla clothing motion-weight conversion around covered breast and hip areas. Source motion samples now include the stock bra and briefs instead of projecting onto distant exposed skin, preventing false local weight peaks. Conversion remains enabled and fitted neutral geometry is unchanged. Managed vanilla top and leg fits regenerate as Motion Fit 5; manual priority overrides remain protected.")
 package = out / "Aetherform.zip"
 with ZipFile(package, "w", ZIP_DEFLATED) as archive:
     add_solver(archive, root, build)

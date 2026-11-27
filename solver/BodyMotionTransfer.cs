@@ -12,7 +12,7 @@ internal static class BodyMotionTransfer
         private readonly Dictionary<Vector3,Dictionary<string,MotionWeights.Coefficient>> samples=[];
         internal readonly HashSet<string> Bones=[];
 
-        internal BodySurface(IEnumerable<byte[]> bodies)
+        internal BodySurface(IEnumerable<byte[]> bodies,bool includeUnderwear=false)
         {
             var points=new List<Vector3>();var influences=new List<Dictionary<string,float>>();
             foreach(var body in bodies)
@@ -21,7 +21,7 @@ internal static class BodyMotionTransfer
                 for(int mesh=layout.Lod0MeshIndex;mesh<layout.Lod0MeshIndex+layout.Lod0MeshCount;mesh++)
                 {
                     int material=BitConverter.ToUInt16(body,layout.MeshStart+36*mesh+8);
-                    if(!SecondSkinWriter.IsBodySkinMaterial(layout.MatNames[material])) continue;
+                    if(!includeUnderwear && !SecondSkinWriter.IsBodySkinMaterial(layout.MatNames[material])) continue;
                     var geometry=new GarmentClearance.Mesh(layout,mesh);
                     var perVertex=new Dictionary<int,Dictionary<string,float>>();
                     foreach(int vertex in geometry.Indices)
@@ -60,14 +60,18 @@ internal static class BodyMotionTransfer
         IReadOnlyDictionary<string,string> originals,Dictionary<string,byte[]> targets)
         // Retained outfit skin must use the same body-motion conversion as its
         // clothing. UV/material conversion alone leaves it on the vanilla rig.
-        => Apply(original,morphed,morph.MotionSupport,new[]{"_top","_dwn"}.Select(slot=>File.ReadAllBytes(originals[slot])),targets,true);
+        // NativeMorph's vanilla reference includes the stock bra and briefs.
+        // Those cover missing skin faces and carry their actual body motion;
+        // sampling exposed skin alone projects breast supports onto distant rims.
+        => Apply(original,morphed,morph.MotionSupport,new[]{"_top","_dwn"}.Select(slot=>File.ReadAllBytes(originals[slot])),targets,true,
+            sourceUnderwear:true);
 
     internal static byte[] Apply(byte[] original,byte[] morphed,
         Func<Vector3,(Vector3 Source,Vector3 Target,float Weight)[]> motionSupport,
         IEnumerable<byte[]> originals,Dictionary<string,byte[]> targets,bool includeSkin,
-        IReadOnlyDictionary<int,IReadOnlySet<int>>? held=null)
+        IReadOnlyDictionary<int,IReadOnlySet<int>>? held=null,bool sourceUnderwear=false)
     {
-        var oldBody=new BodySurface(originals);
+        var oldBody=new BodySurface(originals,sourceUnderwear);
         var newBody=new BodySurface(new[]{"_top","_dwn"}.Select(slot=>targets[slot]));
         var source=SecondSkinWriter.Parse(original);var fitted=SecondSkinWriter.Parse(morphed);
         var joins=ClothSubdivision.IdentifyJoins(source);
