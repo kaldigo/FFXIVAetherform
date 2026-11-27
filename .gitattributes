@@ -1,0 +1,4 @@
+# Preserve checksum-pinned catalog bytes across Windows and Linux.
+*.json -text
+*.mdl -text
+*.png -text
