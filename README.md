@@ -90,3 +90,26 @@ The first cleaned reference contains 30,675 triangles and 15,383 geometric verti
 
 Regression tests cover planar preservation, curved shared-edge continuity, conforming density refinement and concave cap boundaries. Visual review compares the cleaned source, flat control and curved reference with geometry-derived shading. Global self-intersection, animation and physics validation remain future checks; triangle orientation checks do not certify these.
 
+## Reusing the accepted wrap landmarks
+
+`transfer_landmarks.py` reuses the 948 retained named point pairs from the earlier flap-free body-wrap work. The previously excluded flap points remain excluded: Point085, Point089, Point094 and Point134. AF Small chest and Medium B leg coordinates and triangle addresses stay unchanged, with Hip Dips and Soft Butt off.
+
+Vanilla points are transferred through the old subdivision lineage to their native triangle material locations, then rebound to the new curved mesh's child triangles. Their positions follow the new curved geometry. Their corresponding material locations remain unchanged within numerical precision; no nearest-surface projection is used. Five points formerly addressed on removed faces are rebound at the exact same shared root boundaries: Point004, Point009, Point014, Point049 and Point054.
+
+Run from this folder:
+
+```powershell
+C:/Python310/python.exe transfer_landmarks.py `
+  --accepted-controls '../.work/flap-free-atlas-full-body-20261121/accepted-controls.npz' `
+  --old-topology '../exports/Aetherform-ZWrap-inputs-20261119/ExportTopology.npz' `
+  --old-lineage '../.work/density-only-body-grid-20261119/dense-source.npz' `
+  --reference outputs/vanilla-reference-v1/vanilla-reference.npz `
+  --output outputs/vanilla-reference-v1/landmarks
+```
+
+The output includes paired named point files, the unchanged AF target OBJ, a CSV, an NPZ and a transfer audit with input hashes. `Vanilla-Curved.points.json` belongs to `../vanilla-curved.obj`; `AF-Small-MediumB.points.json` belongs to `AF-Small-MediumB.obj`. Both selections are checked against their serialized OBJ triangle layouts. Point format is `name: [zero-based triangle index, barycentric A, barycentric B]`, with C equal to 1 minus A minus B.
+
+For the planned **AF to vanilla** wrap, use AF as the floating mesh and the curved vanilla reference as the fixed mesh, with each mesh's matching point selection. This transfer stage prepares the correspondence; it does not run a wrap or change an existing Wrap project.
+
+All 948 pairs transfer successfully. Maximum material-location error is below 0.000001 mm. Source points move a median 1.11 mm and a maximum 5.93 mm as they follow the reconstructed curvature. They lie on the exported mesh, whose chord approximation differs from the continuous PN patches by up to 1.10 mm at these landmarks. The four omitted identities are still omitted, and no new point pairs are introduced.
+
