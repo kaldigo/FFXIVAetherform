@@ -2,6 +2,14 @@
   "Schema": 1,
   "Entries": [
     {
+      "Id": "no2-type-b-leggings-custom-review",
+      "GamePath": "chara/equipment/e0649/model/c0201e0649_dwn.mdl",
+      "SourceKind": "vanilla",
+      "SourceHash": "270ef5fe16f789bfe478cf9df5c4f894733673bb3fe696ea15cbf7acff1efb13",
+      "Recipe": "recipes/no2-type-b-leggings-custom-review.json",
+      "Sha256": "2a19a0aa51bc6460b34593f842decf0931eff4cd4f4c69b61c2f8a7074f2ec5a"
+    },
+    {
       "Id": "summer-sunset-beach-cover-up-draped",
       "GamePath": "chara/equipment/e6137/model/c0201e6137_top.mdl",
       "SourceKind": "vanilla",

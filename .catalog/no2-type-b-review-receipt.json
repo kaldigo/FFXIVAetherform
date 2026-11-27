@@ -1,0 +1,84 @@
+{
+  "recipe": "no2-type-b-leggings-custom-review",
+  "status": "review",
+  "runtime": "installed Aetherform 0.4.0.37",
+  "installedGameSourceHashVerified": "270ef5fe16f789bfe478cf9df5c4f894733673bb3fe696ea15cbf7acff1efb13",
+  "selection": {
+    "runtime": "installed Aetherform 0.4.0.37",
+    "defaultDrawStreamsExact": true,
+    "checks": [
+      {
+        "chest": "XS",
+        "legs": "Medium",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "XS",
+        "legs": "Large",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Small",
+        "legs": "Medium",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Small",
+        "legs": "Large",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Medium",
+        "legs": "Medium",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Medium",
+        "legs": "Large",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Large",
+        "legs": "Medium",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      },
+      {
+        "chest": "Large",
+        "legs": "Large",
+        "genitalLabelsChecked": 3,
+        "exactPublishedMesh": true,
+        "wrongShapeFlagsFallBack": true
+      }
+    ]
+  },
+  "equipmentMorph": "shp_mom transferred; C2 fade from 0.2 to 0.3 mm; default draw streams unchanged",
+  "shapeValueCounts": {
+    "Medium": 60674,
+    "Large": 61798
+  },
+  "validation": [
+    "Normalized packed weights",
+    "Eight skin and four clothing influence lanes",
+    "Matching skin and panty contact weights",
+    "Stocking boot-hide flags retained",
+    "MDL readback and shader capacity"
+  ],
+  "limitations": [
+    "Controlled leg swings and deep sitting/crouching still report crotch contacts",
+    "Live game physics remains unverified"
+  ]
+}

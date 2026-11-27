@@ -116,3 +116,11 @@ The first catalog entries are White Moonfire Happi and Summer Sunset Beach Cover
 |---|---|---|---|---|
 | White Moonfire Happi | [View](previews/6092-front.png) | [View](previews/6092-back.png) | [View](previews/6092-three-quarter.png) | [View](previews/6092-rear-three-quarter.png) |
 | Summer Sunset Beach Cover-up | [View](previews/6137-front.png) | [View](previews/6137-back.png) | [View](previews/6137-three-quarter.png) | [View](previews/6137-rear-three-quarter.png) |
+
+## No.2 Type B Leggings: weighted review
+
+The default now includes the current custom 2B leggings review for AF Medium and Large lower bodies, across the four supported chest selections. It is pinned to the original vanilla `c0201e0649_dwn.mdl`, exact native Yiggle body files, and Hip Dips + Soft Butt. Genital A/B/C hashes share the same covered fit. Existing manual overrides remain protected. Other body/shape settings keep the automatic fallback; Original automatic fit is available as an alternative.
+
+The accepted outer thigh includes the extra 0.8 mm fullness. The inner contour is blended and the skin/panty boundary has matching geometry and weights. Skin uses eight influence lanes; clothing retains its four-influence shader format. Stocking boot-hiding attributes are preserved. The source equipment corrective is transferred to the new topology; sub-0.3 mm corrections are smoothly faded to fit the MDL shape-value budget. The reviewed default surface is unchanged by that compatibility work.
+
+This is a **review**, not movement-cleared final geometry. Controlled leg swings and deeper sitting/crouching tests still report crotch contacts. Prescribed thigh/butt physics-bone sweeps do not replace live in-game physics validation. [Movement review](previews/0649-weighted-review.png). Static fit, normalized weights, matching contact weights, shader limits and source/target recipe selection are checked before publication.
