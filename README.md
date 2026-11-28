@@ -61,7 +61,9 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
-The [protected under-breast trial and lower-body audit](protected-underbreast-notes.md) preserves more of the broad underside curve while filtering fabric detail. The current butt/lower-body coordinates are retained for comparison, but the audit flags a substantial crotch rise before lower-body acceptance. Cleavage and strap/clasp reconstruction are deferred to a later post-process.
+The [protected crotch trial](crotch-protection-notes.md) restores the flatter centre and sharper transitions between the thighs using feature-aware local fits. The accepted chest and rear seat remain exact. Bra seam, cleavage and strap/clasp cleanup are reserved for post-processing.
+
+The [protected under-breast trial and lower-body audit](protected-underbreast-notes.md) preserves more of the broad underside curve while filtering fabric detail. Its chest and butt appearance were accepted as the working base; the audit's substantial crotch rise motivated the correction above.
 
 The [final-curvature correction trial](curvature-envelope-notes.md) adds direct control of the final surface's local quadratic residual to the inward envelope fit. It targets the dip-to-bump changes in the circled seat patches and compares the chest against the earlier candidate. Its under-breast curve changes motivated the protected trial above.
 

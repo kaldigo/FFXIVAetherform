@@ -1,4 +1,4 @@
-"""Protect broad lower-breast curvature while filtering fine fabric relief."""
+"""Protect regional body shape while filtering fine fabric relief."""
 import argparse,json,hashlib
 from pathlib import Path
 import numpy as np
@@ -20,16 +20,19 @@ def smooth_gate(x,outer_lo,inner_lo,inner_hi,outer_hi):
     return (a*a*(3-2*a))*(b*b*(3-2*b))
 
 
-def broad_operator(v,t,n,mass,free,protection,radius=30.):
+def broad_operator(v,t,n,mass,free,protection,radius=30.,normal_cos=.6,neighbourhood_normals=None):
     """Preserve robust broad slope/quadratic coefficients; allow height inset.
 
     Coefficients use a fixed raw tangent chart. Omitting the constant term
     allows garment thickness removal while penalising changes to broad shape.
     """
     _,metric=graph(v,t);rows=[];cols=[];values=[];weights=[]
+    neighbourhood_normals=n if neighbourhood_normals is None else neighbourhood_normals
     for i in np.flatnonzero(free&(protection>0)):
         dd=dijkstra(metric,directed=False,indices=int(i),limit=radius)
-        near=(dd<radius)&((n@n[i])>.6)&(v[:,0]*v[i,0]>=0)
+        near=(dd<radius)&((neighbourhood_normals@neighbourhood_normals[i])>normal_cos)
+        if abs(v[i,0])>1e-4:near&=v[:,0]*v[i,0]>=-1e-6
+        else:near&=abs(v[:,0])<6.
         ids=np.flatnonzero(near)
         if len(ids)<12:continue
         axis=np.array([0.,1.,0.]) if abs(n[i,1])<.9 else np.array([1.,0.,0.])
@@ -57,15 +60,22 @@ def run(args):
     np.testing.assert_array_equal(current['rawPosition'],v)
     for k in ('triangles','uv','weights','boneNames','group'):np.testing.assert_array_equal(raw[k],current[k])
     n=current['envelopeDirection'];mass,lap=surface_operator(v,t)
-    protection=smooth_gate(abs(v[:,0]),20,30,100,120)*smooth_gate(v[:,1],1165,1180,1220,1240)*np.clip((v[:,2]-40)/15,0,1)
+    if args.region=='crotch':
+        side=np.clip((85-abs(v[:,0]))/50,0,1);side=side*side*(3-2*side)
+        protection=side*smooth_gate(v[:,1],805,830,870,895)*smooth_gate(v[:,2],-35,-15,50,80)
+    else:
+        protection=smooth_gate(abs(v[:,0]),20,30,100,120)*smooth_gate(v[:,1],1165,1180,1220,1240)*np.clip((v[:,2]-40)/15,0,1)
     free=(protection>0)&~current['fixedSkin'];ids=np.flatnonzero(free)
-    broad,bw=broad_operator(v,t,n,mass,free,protection)
+    feature_normals=normals(v,t) if args.feature_angle is not None else None
+    normal_cos=np.cos(np.deg2rad(args.feature_angle)) if args.feature_angle is not None else .6
+    broad,bw=broad_operator(v,t,n,mass,free,protection,args.broad_radius,normal_cos,feature_normals)
     bj=broad[:,ids];bwt=args.broad_weight*bw
     # Changes taper back to the current version at the patch perimeter.
     q=(diags(mass)+16*lap).tocsr()[ids][:,ids]
     start=current['envelopeNormalShiftMm'].copy();d=start.copy();records=[];relevant=t[np.any(free[t],axis=1)]
     for iteration in range(args.iterations):
-        fine,base,fw,row_ids=curvature_operator(v,v+d[:,None]*n,n,t,raw['group'],mass,free,args.fine_radius)
+        fine,base,fw,row_ids=curvature_operator(v,v+d[:,None]*n,n,t,raw['group'],mass,free,args.fine_radius,
+            normal_cos,feature_normals,args.region=='crotch')
         fj=fine[:,ids];fwt=args.fine_weight*fw
         fine_base=base+fine@start;broad_base=broad@start
         diagonal=np.sqrt(q.diagonal()+np.asarray(fj.power(2).T@fwt+bj.power(2).T@bwt).ravel())
@@ -88,18 +98,20 @@ def run(args):
             maximumStepMm=float(abs(d-previous).max()),fineResidualRmsMm=float(np.sqrt(np.average((base+fine@d)**2,weights=fw))),
             broadCoefficientDifferenceRmsMm=float(np.sqrt(np.average((broad@d)**2,weights=bw))))
         records.append(record);print(record,flush=True)
-        if not fit.success or relative>1e-4:raise ValueError('Protected chest solve did not converge')
+        if not fit.success or relative>1e-4:raise ValueError('Protected region solve did not converge')
         if record['maximumStepMm']<.01:break
     p=v+d[:,None]*n
-    # Retain exact snapshot coordinates everywhere outside this chest patch.
+    # Retain exact snapshot coordinates everywhere outside the active patch.
     p[~free]=current['position'][~free]
     np.testing.assert_array_equal(p[~free],current['position'][~free]);assert d.max()<1e-8
     old_cross=np.cross(v[t[:,1]]-v[t[:,0]],v[t[:,2]]-v[t[:,0]])
     new_cross=np.cross(p[t[:,1]]-p[t[:,0]],p[t[:,2]]-p[t[:,0]])
     ratio=np.sum(old_cross*new_cross,axis=1)/np.sum(old_cross**2,axis=1)
-    if ratio.min()<=.05:raise ValueError('Protected chest contains collapsed/reversed triangles')
+    if ratio.min()<=.05:raise ValueError('Protected region contains collapsed/reversed triangles')
     result=dict(current);result.update(position=p,normal=normals(p,t)[t],envelopeNormalShiftMm=d,
-        broadCurveProtection=protection,chestFreeVertex=free,fixedToCurrent=~free)
+        activeProtection=protection,activeFreeVertex=free,fixedToCurrent=~free)
+    if args.region=='crotch':result.update(crotchFreeVertex=free,crotchCurveProtection=protection)
+    else:result.update(broadCurveProtection=protection,chestFreeVertex=free)
     out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
     np.savez_compressed(out/'body-fit-reference.npz',**result)
     write_obj(out/'vanilla-body-fit.obj',p,t,result['normal'],raw['uv'],raw['group'])
@@ -108,17 +120,20 @@ def run(args):
     np.savez_compressed(out/'paired-landmarks-candidate.npz',**lm)
     write_points(out/'Vanilla-BodyFit.points.json',lm['names'],lm['sourceFace'],lm['sourceBary'])
     report=dict(rawSha256=hashlib.sha256(raw_path.read_bytes()).hexdigest(),currentSha256=hashlib.sha256(current_path.read_bytes()).hexdigest(),
-        freeChestVertices=len(ids),unchangedVertices=int((~free).sum()),fineRadiusMm=args.fine_radius,fineWeight=args.fine_weight,
-        broadWeight=args.broad_weight,broadRadiusMm=30,iterations=records,connectivity=boundaries(t),
+        region=args.region,freeVertices=len(ids),unchangedVertices=int((~free).sum()),fineRadiusMm=args.fine_radius,fineWeight=args.fine_weight,
+        broadWeight=args.broad_weight,broadRadiusMm=args.broad_radius,featureAngleDegrees=args.feature_angle,iterations=records,connectivity=boundaries(t),
         minimumProjectedAreaRatio=float(ratio.min()),
-        scope='Chest-only experiment: protect robust broad slope/curvature coefficients and filter finer relief. Current lower-body coordinates remain exact but the crotch is flagged by the lower-body audit. Cleavage and strap/clasp post-processing is deferred.')
-    (out/'protected-chest-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
+        scope=('Crotch-only experiment: protect local slopes/curvature and use feature-aware same-side neighbourhoods. Chest and rear seat positions remain exact.' if args.region=='crotch' else 'Chest-only experiment: protect robust broad slope/curvature coefficients and filter finer relief. Current lower-body coordinates remain exact but the crotch is flagged by the lower-body audit.')+' Cleavage and bra seam/strap/clasp post-processing is deferred.')
+    (out/('protected-'+('crotch' if args.region=='crotch' else 'chest')+'-report.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
 
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--raw',default='outputs/body-cleanup-4x-raw')
     p.add_argument('--current',default='outputs/body-curvature-envelope-4x-w1000');p.add_argument('--output',default='outputs/body-protected-underbreast-4x-f20-w10000')
     p.add_argument('--broad-weight',type=float,default=1000.);p.add_argument('--fine-weight',type=float,default=10000.)
-    p.add_argument('--fine-radius',type=float,default=20.);p.add_argument('--iterations',type=int,default=8);a=p.parse_args()
+    p.add_argument('--fine-radius',type=float,default=20.);p.add_argument('--broad-radius',type=float,default=30.)
+    p.add_argument('--region',choices=('underbreast','crotch'),default='underbreast');p.add_argument('--feature-angle',type=float)
+    p.add_argument('--iterations',type=int,default=8);a=p.parse_args()
     if a.broad_weight<=0 or a.fine_weight<=0 or a.fine_radius<=0 or a.iterations<1:p.error('Positive weights/radius and at least one iteration required')
+    if a.broad_radius<=0 or (a.feature_angle is not None and not 0<a.feature_angle<90):p.error('Invalid broad radius or feature angle')
     run(a)

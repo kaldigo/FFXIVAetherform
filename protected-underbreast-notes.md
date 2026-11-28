@@ -1,5 +1,7 @@
 # Protect the broad under-breast curve; audit the lower body
 
+The user subsequently accepted this chest/butt appearance as the working base, with bra seam and cleavage cleanup assigned to post-processing. The flagged crotch rounding is addressed by the separate [protected crotch trial](crotch-protection-notes.md); this original comparison remains unchanged.
+
 The user requested a chest-only trial preserving the broad underside curve, comparison with raw and the current fit, and a lower-body review before treating that region as locked. The butt appearance was acceptable, but fixed rear renders were not sufficient evidence for the whole lower body. Cleavage and bra strap/clasp reconstruction are deferred to a later post-process; the user has ideas for that stage. No new geometry is invented in those areas here.
 
 ## Chest method

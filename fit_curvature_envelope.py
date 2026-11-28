@@ -9,7 +9,7 @@ from reference_surface import unit
 from fit_inner_envelope import orientation_penalty
 
 
-def curvature_operator(raw,current,direction,t,groups,mass,free,radius):
+def curvature_operator(raw,current,direction,t,groups,mass,free,radius,normal_cos=.6,neighbourhood_normals=None,split_sides=False):
     """Linearised signed residual from a local quadratic final-surface fit.
 
     Tangential coordinates come from current positions; neighbourhood distance
@@ -17,14 +17,15 @@ def curvature_operator(raw,current,direction,t,groups,mass,free,radius):
     or an opposing surface are mixed into a fit.
     """
     _,metric=graph(raw,t);top=np.zeros(len(raw),bool);top[t[groups=='top_smallclothes']]=True
+    neighbourhood_normals=direction if neighbourhood_normals is None else neighbourhood_normals
     rows=[];cols=[];values=[];base=[];row_mass=[];row_ids=[];start=time.time()
     for count,i in enumerate(np.flatnonzero(free)):
         rr=radius
         if top[i] and raw[i,2]>40:rr=min(rr,8.+.7*abs(raw[i,0]))
         if not top[i] and raw[i,2]<-35:rr=min(rr,10.+.8*abs(raw[i,0]))
         distance=dijkstra(metric,directed=False,indices=int(i),limit=rr)
-        near=(distance<rr)&((direction@direction[i])>.6)
-        if (top[i] and raw[i,2]>40) or (not top[i] and raw[i,2]<-35):
+        near=(distance<rr)&((neighbourhood_normals@neighbourhood_normals[i])>normal_cos)
+        if split_sides or (top[i] and raw[i,2]>40) or (not top[i] and raw[i,2]<-35):
             if abs(raw[i,0])>1e-5:near&=raw[:,0]*raw[i,0]>=-1e-6
             else:near&=abs(raw[:,0])<6.
         ids=np.flatnonzero(near)

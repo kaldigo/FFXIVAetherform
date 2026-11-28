@@ -15,6 +15,17 @@ def grid(n=17):
 
 
 class CurvatureEnvelopeTests(unittest.TestCase):
+    def test_feature_neighbourhood_does_not_mix_opposing_crease_sides(self):
+        v,t=grid();v[:,2]=.6*abs(v[:,0])
+        n=np.c_[-.6*np.sign(v[:,0]),np.zeros(len(v)),np.ones(len(v))]
+        n/=np.linalg.norm(n,axis=1)[:,None]
+        mass,_=surface_operator(v,t);free=(v[:,0]==-2)&(abs(v[:,1])<4)
+        operator,residual,_,ids=curvature_operator(v,v,n,t,np.full(len(t),'legs_smallclothes'),mass,free,7.,
+            normal_cos=np.cos(np.deg2rad(25)),neighbourhood_normals=n,split_sides=True)
+        self.assertGreater(len(ids),0)
+        self.assertEqual(operator[:,v[:,0]>0].nnz,0)
+        np.testing.assert_allclose(residual,0,atol=1e-12)
+
     def test_quadratic_curvature_is_not_mistaken_for_fabric(self):
         v,t=grid();v[:,2]=.03*v[:,0]**2+.01*v[:,0]*v[:,1]+.02*v[:,1]**2
         n=np.tile([0.,0,1],(len(v),1));mass,_=surface_operator(v,t);free=(abs(v[:,0])<6)&(abs(v[:,1])<6)
