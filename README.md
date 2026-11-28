@@ -4,6 +4,8 @@ Working area for custom refit authoring using paired AF body surfaces, garment r
 
 The user-accepted **4x working body** is snapshotted under `outputs/working-body-4x/`, with artifact hashes and matching point files recorded in [working-mesh.json](working-mesh.json). Post-processing trials use separate outputs. The [local bra seam/cleavage investigation](bra-postprocessing-notes.md) implements the proposed surrounding-angle approach without replacing that accepted snapshot.
 
+The [controlled pose and animation review](body-motion-notes.md) tests the local bra candidate on the actual vanilla skeleton over 15 procedural clips. The edited chest passes the sampled crossing/fold/collapse checks. Deep bends reveal lower-body issues shared with the raw reconstruction; native game animation and live physics playback remain untested.
+
 ## Repository and publishing
 
 - Repository: https://github.com/kaldigo/FFXIVAetherform
