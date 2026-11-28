@@ -370,7 +370,7 @@ def refine(v, tri, target_areas, max_rounds=24):
 
 def write_obj(path, positions, tri, normals, uv, groups):
     with Path(path).open("w", encoding="utf-8") as f:
-        f.write("# Normal-guided vanilla reference, millimetres; skin and smallclothes are separate groups\n")
+        f.write("# Triangle surface in millimetres; named groups and per-corner UVs/normals\n")
         for p in positions:
             f.write("v %.9f %.9f %.9f\n" % tuple(p))
         for p in uv.reshape(-1, 2):

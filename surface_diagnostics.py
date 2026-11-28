@@ -5,7 +5,7 @@ from render_af_comparison import BG,camera
 from reference_surface import unit
 
 
-def raster(p,view,bounds,size=(580,405),vertex_normals=None,normal_sampler=None):
+def raster(p,view,bounds,size=(580,405),vertex_normals=None,normal_sampler=None,face_colors=None):
     width,height=size;h,v,depth,sign,vertical_sign=camera(view)
     xmin,xmax,ymin,ymax=bounds
     cross=np.cross(p[:,1]-p[:,0],p[:,2]-p[:,0]);n=unit(cross)
@@ -30,7 +30,9 @@ def raster(p,view,bounds,size=(580,405),vertex_normals=None,normal_sampler=None)
     nn=n[ids] if vertex_normals is None else unit(np.einsum('ni,nij->nj',bc_image[selected],vertex_normals[ids]))
     if normal_sampler is not None:nn=normal_sampler(ids,bc_image[selected])
     light=np.zeros(3);light[depth]=sign*.85;light[v]=.5;light[h]=-.25
-    shade=.5+.5*np.maximum(0,nn@unit(light));rgb[selected]=np.clip(np.array([111,173,195])*shade[:,None],0,255).astype(np.uint8)
+    shade=.5+.5*np.maximum(0,nn@unit(light))
+    base=np.array([111,173,195]) if face_colors is None else np.asarray(face_colors)[ids]
+    rgb[selected]=np.clip(base*shade[:,None],0,255).astype(np.uint8)
     return Image.fromarray(rgb),face,bc_image
 
 
