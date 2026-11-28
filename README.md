@@ -61,7 +61,9 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
-The [standalone underwear extraction trial](underclothes-extraction-notes.md) uses the raw 4x relief and 6 mm separated body to produce separate bra and briefs shells. Both pass the static body-crossing and non-adjacent self-crossing checks. Material regions supply their outlines; clearance and thickness remain explicit fitting assumptions.
+The [skin-anchored inner-envelope trial](inner-envelope-notes.md) fits average local curves on the raw 4x geometry, then continues a smooth inward correction from the surrounding skin. It adds no fixed thickness or garment lift. The original underwear stays at its original coordinates. Residual seams and the reconstructed cleavage root remain review issues.
+
+The [standalone underwear extraction trial](underclothes-extraction-notes.md) used the raw 4x relief and 6 mm separated body to produce separate bra and briefs shells. Its required lifts exposed a failure of the earlier body separation as an inner-body estimate. The shell construction passed static crossing checks after those lifts; that did not validate the inferred body shape.
 
 The [4x shape/detail separation trial](body-shape-separation.md) combines neutralised geometry with the broad raw-minus-neutral displacement. It compares raw, blurred, neutralised and separated surfaces, with a labelled 0.5 mm inward allowance. The 6 mm trial best preserves the sampled seat, breast and cleavage shapes among the tested scales; existing mapping/wrap references remain unchanged.
 

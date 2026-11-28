@@ -1,5 +1,7 @@
 # Separate broad body shape from fabric relief on the 4x reference
 
+**Later finding:** this is a historical shape-filtering comparison, rejected as the core-body estimate. The underwear extraction trial required outward garment lifts because parts of this surface protruded through the raw underwear. Its shape/error metrics below do not establish a valid inner envelope. The next experiment is the [skin-anchored inner-envelope fit](inner-envelope-notes.md).
+
 28 November 2026. Test the raw-minus-neutral difference on the 4x mesh and compare with raw, blurred and neutralised references. Preserve the butt curve, breast shape and cleavage while allowing an inward movement that could later represent garment thickness. Only the 4x level is tested here; 1x mapping and existing 2x/4x references remain unchanged.
 
 ## Method

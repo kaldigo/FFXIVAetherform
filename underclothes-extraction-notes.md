@@ -1,5 +1,7 @@
 # Standalone underwear extraction trial
 
+**Interpretation after review:** the lifts below compensate for an invalid inner-body estimate. Passing the adjusted-shell crossing checks is not a successful recovery of natural garment thickness or the core body. Keep this as a diagnostic trial. The [skin-anchored inner-envelope experiment](inner-envelope-notes.md) instead keeps the raw underwear fixed and estimates the body underneath it.
+
 This trial uses the raw reconstructed 4x body and the preferred 6 mm shape-separated 4x body. The latter is unchanged. The normal-map relief becomes actual surface geometry on separate bra and briefs objects; no normal texture is applied in the review renders.
 
 The existing smallclothes material regions supply the outline. Normal maps alone cannot recover garment boundaries, hidden surfaces, physical thickness or fastening. This is an extraction and static fitting experiment, not a finished wearable garment.
