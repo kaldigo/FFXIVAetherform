@@ -1,6 +1,6 @@
 # Flatter genital fitting envelope
 
-The user found the first genital envelope too low and too rounded. The current **v4** revision raises and flattens that centre while only just covering the existing AF shape. `af-fitting-mesh.json` identifies this revision. `af-fitting-mesh-genital-v3.json` and `outputs/af-fitting-genital-v3/` retain the previous envelope for comparison.
+The user found the first genital envelope too low and too rounded. This **v4** revision raised and flattened that centre while covering the existing AF shape. It is retained in `af-fitting-mesh-genital-v4.json`. The current [v5 revision](af-fitting-smooth-hidden-detail.md), identified by `af-fitting-mesh.json`, removes the anterior bump by permitting the hidden source detail to clip, as requested by the user.
 
 The lowest edited point rises from **Y 844.582 mm to 847.954 mm**, about **3.371 mm higher**. The corresponding minimum on the original genital geometry is Y 848.198 mm. The revised surface therefore removes the former downward dome while still lying just outside the original shape. Its largest change from the previous envelope is 4.852 mm, measured over all edited vertices.
 
@@ -38,9 +38,9 @@ Current local artifacts are under `outputs/af-fitting-genital-v4/`:
 - `af-genital-centre-profile.png`: world-space centre profile; orange original, blue previous and green revised. Higher lines have less downward projection.
 
 ```powershell
-C:/Python310/python.exe tighten_af_genital.py
-C:/Python310/python.exe review_af_fitting_genital.py
-C:/Python310/python.exe audit_af_lower_fit.py
+C:/Python310/python.exe tighten_af_genital.py --output outputs/af-fitting-genital-v4-check --no-manifest
+C:/Python310/python.exe review_af_fitting_genital.py outputs/af-fitting-genital-v4-check
+C:/Python310/python.exe audit_af_lower_fit.py outputs/af-fitting-genital-v4-check
 C:/Python310/python.exe -m unittest test_af_tight_cover test_af_fitting_genital test_af_fitting_chest test_af_comparison test_reference_surface -v
 ```
 

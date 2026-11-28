@@ -8,8 +8,9 @@ from transfer_landmarks import read_points
 from mesh_crossings import crossing_pairs
 
 
-def run(folder='outputs/af-fitting-genital-v4'):
-    out=Path(folder);d=dict(np.load(out/'af-fitting-reference.npz'));parent=dict(np.load('outputs/af-fitting-chest-v2/af-fitting-reference.npz'))
+def run(folder=None):
+    out=Path(folder) if folder else Path(json.loads(Path('af-fitting-mesh.json').read_text())['artifacts']['af-fitting-reference.npz']['path']).parent
+    d=dict(np.load(out/'af-fitting-reference.npz'));parent=dict(np.load('outputs/af-fitting-chest-v2/af-fitting-reference.npz'))
     v,t=d['position'],d['triangles'];before=d['parentPosition'];changed=d['genitalModifiedVertex']
     for key in ('triangles','uv','weights','boneNames','nativeVertexIndices','sourcePosition'):np.testing.assert_array_equal(d[key],parent[key])
     np.testing.assert_array_equal(before,parent['position']);np.testing.assert_array_equal(v[~changed],before[~changed])
@@ -33,4 +34,4 @@ def run(folder='outputs/af-fitting-genital-v4'):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/af-fitting-genital-v4');run(p.parse_args().folder)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?');run(p.parse_args().folder)

@@ -2,7 +2,7 @@
 import unittest
 import numpy as np
 from scipy.sparse import csr_matrix,eye
-from tighten_af_genital import coverage_rows,qp_cover,overlay_samples,crest_heights
+from tighten_af_genital import coverage_rows,qp_cover,overlay_samples,crest_heights,hidden_peak_mask
 from prepare_af_fitting_genital import side_slope_model
 
 
@@ -36,6 +36,13 @@ class TightCoverTests(unittest.TestCase):
     def test_crest_clips_sections_to_the_requested_strip(self):
         p=np.array([[-2.,-1,0],[2,-1,4],[0,1,0]])
         np.testing.assert_allclose(crest_heights(p,np.array([[0,1,2]]),[0.],half_width=.5),[1.5],atol=1e-12)
+
+    def test_hidden_peak_can_clip_without_forcing_a_surface_bump(self):
+        points=np.array([[0.,0,0],[0,20,1.]])
+        required=~hidden_peak_mask(points);A=eye(2,format='csr');P=csr_matrix([[2.,-1],[-1,2.]])
+        h,report=qp_cover(P,np.zeros(2),A[required],points[required,2],np.ones(2))
+        self.assertTrue(report['converged']);np.testing.assert_allclose(h,0,atol=.002)
+        self.assertLess(h[1],points[1,2]-.9)
 
 
 if __name__=='__main__':unittest.main()

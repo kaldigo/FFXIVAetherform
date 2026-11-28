@@ -1,6 +1,6 @@
 # AF lower fitting surface: genital pass
 
-The user accepted breast preparation v2. Its mesh/data remain unchanged under `outputs/af-fitting-chest-v2/`, identified by `af-fitting-mesh-chest-v2.json`. This page records the initial genital unfolding, v3, retained in `af-fitting-mesh-genital-v3.json`. The current `af-fitting-mesh.json` identifies the subsequent [flatter close-cover revision, v4](af-fitting-tight-cover.md), which raises the low peak and follows the original crests more closely.
+The user accepted breast preparation v2. Its mesh/data remain unchanged under `outputs/af-fitting-chest-v2/`, identified by `af-fitting-mesh-chest-v2.json`. This page records the initial genital unfolding, v3, retained in `af-fitting-mesh-genital-v3.json`. The subsequent [v4 revision](af-fitting-tight-cover.md) raised the low peak. The current `af-fitting-mesh.json` identifies [v5's smooth curve](af-fitting-smooth-hidden-detail.md), which removes the anterior bump by allowing the hidden skin detail to clip.
 
 This starts the lower-body fitting surface. The rear cleft and anal detail are not changed in this pass. No external panties reference or constant thickness offset is used.
 

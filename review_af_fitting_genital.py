@@ -19,8 +19,9 @@ def cut_segments(p,axis,value):
     return np.array(segments)
 
 
-def run(folder='outputs/af-fitting-genital-v4'):
-    out=Path(folder);d=dict(np.load(out/'af-fitting-reference.npz'));v=d['parentPosition'];q=d['position'];t=d['triangles'];diag=dict(np.load(out/'genital-diagnostics.npz'))
+def run(folder=None):
+    out=Path(folder) if folder else Path(json.loads(Path('af-fitting-mesh.json').read_text())['artifacts']['af-fitting-reference.npz']['path']).parent
+    d=dict(np.load(out/'af-fitting-reference.npz'));v=d['parentPosition'];q=d['position'];t=d['triangles'];diag=dict(np.load(out/'genital-diagnostics.npz'))
     font=ImageFont.truetype('C:/Windows/Fonts/segoeui.ttf',20)
     versions=[('Original AF',v)]
     if 'previousGenitalPosition' in d:versions.append(('Previous envelope',d['previousGenitalPosition']))
@@ -73,4 +74,4 @@ def run(folder='outputs/af-fitting-genital-v4'):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/af-fitting-genital-v4');run(p.parse_args().folder)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?');run(p.parse_args().folder)
