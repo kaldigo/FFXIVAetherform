@@ -45,6 +45,7 @@ With the raw 4x body and earlier 6 mm comparison already generated, and dependen
 ```powershell
 C:/Python310/python.exe fit_inner_envelope.py
 C:/Python310/python.exe review_inner_envelope.py
+C:/Python310/python.exe audit_envelope_normals.py
 C:/Python310/python.exe -m unittest -v
 ```
 
@@ -53,3 +54,11 @@ The default output is `outputs/body-inner-envelope-4x-collar12/`. It contains th
 The curve cache is tied to the raw input hash and radius; remove it when changing the curve-fit implementation. Displacement direction, average trend and solved offset are retained in the NPZ for inspection.
 
 Validation: 29 unit tests pass, including balanced-texture averaging over a known quadratic, coupled inward bounds with fixed skin, and the projected-area penalty's analytical gradient. All 948 point addresses and AF-side values were checked unchanged; updated source positions replay exactly. Geometry is finite and weights remain normalized and nonnegative.
+
+## Normal-update verification
+
+`audit_envelope_normals.py` independently recalculates angle-weighted normals from the final surface, using `atan2` corner angles rather than the production `arccos` implementation. It also parses the actual OBJ and verifies its vertex/normal indices and exported values. Stored normals differ from the independent result by at most 4.88e-16 in vector length; the OBJ differs by at most 8.60e-10 due to decimal serialization. Recalculating from the serialized OBJ gives a maximum angular difference of 6.13e-8 degrees. Normals are finite and unit length.
+
+Of 9,840 corners in the inspected rear-seat region, 8,426 have different normals from the raw reference. Their mean angular change is 1.45 degrees, with a 5.55 degree 95th percentile. The final normals are updated from the fitted geometry; raw or normal-map shading is not reused.
+
+`seat-normal-verification.png` compares raw smooth shading, exported candidate shading, independently recalculated candidate shading and flat geometric shading for the rear and side. Exported and independently recalculated shading agree. The remaining lower garment-band/crease shape is also visible with flat triangle normals, so stale normals do not explain that residual. Smooth interpolation affects its appearance, and irregular triangle slopes can still produce uneven shading. This audit changes no mesh geometry and does not add cosmetic normal smoothing to hide those features.
