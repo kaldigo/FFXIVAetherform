@@ -2,6 +2,7 @@
 import argparse,hashlib,json,shutil
 from pathlib import Path
 import numpy as np
+from scipy.interpolate import RBFInterpolator
 from reference_surface import areas,unit,load_snapshot,mesh_arrays,write_obj
 from transfer_landmarks import read_obj,read_points
 from compare_af_bases import load_af
@@ -44,6 +45,28 @@ def continue_curve(q,mass,support,core=9.,outer=18.,collar=(14.,26.)):
         centrePrincipalGraphCurvaturesPerMm=np.linalg.eigvalsh(np.array([[2*coef[3],coef[4]],[coef[4],2*coef[5]]])/scale**2).tolist())
 
 
+def continue_collar_surface(q,mass,support,outer=18.,collar=(14.,26.)):
+    """Fill the missing breast surface from a sampled surrounding collar.
+
+    A quadratic-reproducing thin-plate interpolant follows the actual collar,
+    rather than blending a global cubic with the old nipple skirt. The small
+    remaining collar residual tapers to exactly zero at the unchanged exterior.
+    """
+    r=np.linalg.norm(q[:,:2],axis=1);sample=support&(r>=collar[0])&(r<=collar[1]);scale=20.
+    if sample.sum()<30:raise ValueError('Insufficient surrounding breast samples')
+    smoothing=1e-5*np.median(mass[sample])/mass[sample]
+    model=RBFInterpolator(q[sample,:2]/scale,q[sample,2],kernel='thin_plate_spline',degree=2,smoothing=smoothing)
+    changed=support&(r<outer);height=q[:,2].copy();height[changed]=model(q[changed,:2]/scale)
+    t=np.clip((r-collar[0])/(outer-collar[0]),0,1);blend=1-(6*t**5-15*t**4+10*t**3)
+    delta=np.where(changed,blend*(height-q[:,2]),0.)
+    residual=model(q[sample,:2]/scale)-q[sample,2]
+    h=.1;probes=np.array([[0,0],[h,0],[-h,0],[0,h],[0,-h],[h,h],[h,-h],[-h,h],[-h,-h]])
+    z=model(probes/scale);hessian=np.array([[(z[1]+z[2]-2*z[0])/h**2,(z[5]-z[6]-z[7]+z[8])/(4*h*h)],[(z[5]-z[6]-z[7]+z[8])/(4*h*h),(z[3]+z[4]-2*z[0])/h**2]])
+    return delta,dict(method='Quadratic-reproducing thin-plate collar infill',outerRadiusMm=outer,collarRadiusMm=list(collar),
+        collarSamples=int(sample.sum()),coordinateScaleMm=scale,smoothingCoefficient=1e-5,centreHeightMm=float(z[0]),
+        collarResidualRmsMm=float(np.sqrt(np.average(residual*residual,weights=mass[sample]))),centrePrincipalGraphCurvaturesPerMm=np.linalg.eigvalsh(hessian).tolist())
+
+
 def run(args):
     out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
     original_path=Path('outputs/vanilla-reference-v1/landmarks/AF-Small-MediumB.obj')
@@ -57,7 +80,7 @@ def run(args):
         n=unit(np.average(native_normals[collar],axis=0,weights=mass[collar]));u=np.array([1.,0,0]);u=unit(u-n*n[0]);w=np.cross(n,u);frame=np.stack((u,w,n),axis=1)
         local=(v-origin)@frame
         support=(distance<38)&(v[:,2]>90)&((native_normals@n)>.3)
-        delta,record=continue_curve(local,mass,support)
+        delta,record=(continue_curve(local,mass,support) if args.method=='cubic-v1' else continue_collar_surface(local,mass,support))
         q+=delta[:,None]*n
         record.update(side='left' if side>0 else 'right',originMm=origin.tolist(),frame=frame.tolist(),tipVertex=tip,
             modifiedVertices=int((abs(delta)>1e-9).sum()),maximumInwardMovementMm=float(-delta.min()),maximumOutwardMovementMm=float(delta.max()))
@@ -90,7 +113,8 @@ def run(args):
     shutil.copyfile(points,out/'AF-Fitting.points.json');names,face,bary=read_points(points)
     old_point=np.einsum('ni,nij->nj',bary,v[t[face]]);new_point=np.einsum('ni,nij->nj',bary,q[t[face]])
     np.savez_compressed(out/'af-fitting-landmarks.npz',names=np.array(names),face=face,bary=bary,position=new_point,sourcePosition=old_point)
-    report=dict(role='AF static fitting copy, Small chest / Medium B legs, Hip Dips and Soft Butt off',method='Area-weighted robust cubic continuation from the surrounding breast collar; height-only C2 radial join. No cap creation, plane clipping, topology change or motion testing.',
+    description='Original cubic continuation with radial blend' if args.method=='cubic-v1' else 'Thin-plate surface continuation constrained by the surrounding breast collar, reproducing quadratic curvature; only the small collar-fit residual tapers to the unchanged exterior'
+    report=dict(role='AF static fitting copy, Small chest / Medium B legs, Hip Dips and Soft Butt off',method=description,
         inputObjSha256=hashlib.sha256(original_path.read_bytes()).hexdigest(),sourceHashes={slot:s['sha256'] for slot,(s,_,_) in zip(('top','legs'),sources)},
         vertices=len(q),triangles=len(t),modifiedVertices=int(modified.sum()),affectedTriangles=int(affected.sum()),patches=records,
         maximumMovementMm=float(np.linalg.norm(q-v,axis=1).max()),minimumAffectedProjectedAreaRatio=float(ratio[affected].min()),minimumTriangleAreaMm2=float(areas(q[t]).min()),
@@ -99,13 +123,16 @@ def run(args):
         landmarkCount=len(names),maximumLandmarkMovementMm=float(np.linalg.norm(new_point-old_point,axis=1).max()),scope='Only nipple-region positions edited on a separate AF fitting copy. The selected AF source assets and vanilla working reference are unchanged. No texture normal map is applied to review shading.')
     (out/'af-fitting-chest-report.json').write_text(json.dumps(report,indent=2)+'\n')
     artifacts={p.name:dict(path=p.as_posix(),sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in [out/'af-fitting-reference.npz',out/'AF-Fitting-Small-MediumB.obj',out/'AF-Fitting.points.json',out/'af-fitting-landmarks.npz']}
-    manifest=dict(role='AF fitting copy',stage='Chest nipple curvature continuation, v1',status='Prepared for user review',
+    manifest=dict(role='AF fitting copy',stage='Chest surface continuation, '+args.method,status='Prepared for user review',
         base=dict(chest='af_top_01 / Small',legs='af_dwn_04 / Medium B',hipDips=False,softButt=False,sourceHashes=report['sourceHashes']),
         vertices=len(q),triangles=len(t),artifacts=artifacts,report=(out/'af-fitting-chest-report.json').as_posix(),
         note='Same AF native vertex/face order and point addresses; only localized nipple-region positions changed. The vanilla working-mesh.json is a separate reference and is unchanged.')
-    Path('af-fitting-mesh.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    if not args.no_manifest:
+        old=Path('af-fitting-mesh.json');archive=Path('af-fitting-mesh-v1.json')
+        if old.exists() and not archive.exists():archive.write_bytes(old.read_bytes())
+        old.write_text(json.dumps(manifest,indent=2)+'\n')
     print(json.dumps(report,indent=2),flush=True)
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--bodies',default='../.work/resolver-preparation-20261118/bodies');p.add_argument('--output',default='outputs/af-fitting-chest-v1');run(p.parse_args())
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--bodies',default='../.work/resolver-preparation-20261118/bodies');p.add_argument('--output',default='outputs/af-fitting-chest-v2');p.add_argument('--method',choices=['cubic-v1','collar-v2'],default='collar-v2');p.add_argument('--no-manifest',action='store_true');run(p.parse_args())

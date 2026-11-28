@@ -2,7 +2,7 @@
 
 Working area for custom refit authoring using paired AF body surfaces, garment retopology and constrained deformation.
 
-The [AF fitting chest preparation](af-fitting-chest.md) starts the Small / Medium B fitting copy by continuing breast curvature through the nipple region. Its original topology, UVs, named weights and point addresses are retained. [af-fitting-mesh.json](af-fitting-mesh.json) identifies this candidate independently of the vanilla reference.
+The [AF fitting chest preparation](af-fitting-chest.md) starts the Small / Medium B fitting copy by continuing breast curvature through the nipple region. The current v2 revision replaces the first flat-looking transition with a continuation of the sampled surrounding surface. Original topology, UVs, named weights and point addresses are retained. [af-fitting-mesh.json](af-fitting-mesh.json) identifies this candidate independently of the vanilla reference; [af-fitting-mesh-v1.json](af-fitting-mesh-v1.json) retains the previous copy.
 
 The user-accepted **4x working body** is snapshotted under `outputs/working-body-4x/`, with artifact hashes and matching point files recorded in [working-mesh.json](working-mesh.json). Post-processing trials use separate outputs. The [local bra seam/cleavage investigation](bra-postprocessing-notes.md) implements the proposed surrounding-angle approach without replacing that accepted snapshot.
 

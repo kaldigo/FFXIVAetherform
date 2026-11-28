@@ -1,5 +1,5 @@
 """Independently recalculate AF fitting normals without changing its geometry."""
-import json
+import argparse,json
 from pathlib import Path
 import numpy as np
 from PIL import Image,ImageDraw,ImageFont
@@ -9,8 +9,8 @@ from reference_surface import write_obj,unit
 from surface_diagnostics import raster
 
 
-def run():
-    out=Path('outputs/af-fitting-chest-v1');d=dict(np.load(out/'af-fitting-reference.npz'));v,t=d['position'],d['triangles']
+def run(folder='outputs/af-fitting-chest-v2'):
+    out=Path(folder);d=dict(np.load(out/'af-fitting-reference.npz'));v,t=d['position'],d['triangles']
     fresh=independently_recalculate(v,t);ov,ot,on=read_export(out/'AF-Fitting-Small-MediumB.obj')
     np.testing.assert_array_equal(ot,t);np.testing.assert_allclose(ov,v,atol=5.1e-10,rtol=0)
     np.testing.assert_allclose(d['normal'],fresh,atol=1e-10,rtol=0);np.testing.assert_allclose(on,fresh,atol=5.1e-10,rtol=0)
@@ -37,4 +37,5 @@ def run():
     im.save(out/'af-fitting-normal-verification.png')
 
 
-if __name__=='__main__':run()
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/af-fitting-chest-v2');run(p.parse_args().folder)
