@@ -1,0 +1,37 @@
+{
+  "role": "AF fitting copy",
+  "stage": "Chest surface continuation, collar-v2",
+  "status": "Breast v2 accepted by user",
+  "base": {
+    "chest": "af_top_01 / Small",
+    "legs": "af_dwn_04 / Medium B",
+    "hipDips": false,
+    "softButt": false,
+    "sourceHashes": {
+      "top": "b89306644180c9852f120d242183ef6be7615428ab9b4f83d2e3ed5fae639e71",
+      "legs": "7292f9e81a0d96a71ddcaa90f6939477bc9389cd359d4f4cc3e28e493c880ba5"
+    }
+  },
+  "vertices": 12289,
+  "triangles": 24290,
+  "artifacts": {
+    "af-fitting-reference.npz": {
+      "path": "outputs/af-fitting-chest-v2/af-fitting-reference.npz",
+      "sha256": "e65da536b338b67c8f64f428e66ad63a087e8405ea70062832448bd1c1b62278"
+    },
+    "AF-Fitting-Small-MediumB.obj": {
+      "path": "outputs/af-fitting-chest-v2/AF-Fitting-Small-MediumB.obj",
+      "sha256": "2811c75143fba176f9a5515031f8a69d4d19a88599fc5d5300b0dd414a90e6f2"
+    },
+    "AF-Fitting.points.json": {
+      "path": "outputs/af-fitting-chest-v2/AF-Fitting.points.json",
+      "sha256": "2da405651bd802a1cfbef0f5f036f9c7fbfd533060f28236b5089e8a3d5adfad"
+    },
+    "af-fitting-landmarks.npz": {
+      "path": "outputs/af-fitting-chest-v2/af-fitting-landmarks.npz",
+      "sha256": "c8e46eb714df80b695066497d0ef069c7b97218c0bf9131e58586f4a723ee09f"
+    }
+  },
+  "report": "outputs/af-fitting-chest-v2/af-fitting-chest-report.json",
+  "note": "Same AF native vertex/face order and point addresses; only localized nipple-region positions changed. The vanilla working-mesh.json is a separate reference and is unchanged."
+}

@@ -1,6 +1,6 @@
 # AF fitting surface: breast curvature continuation
 
-28 November 2026. The current AF fitting copy is **v2**, based on standard Small chest (`af_top_01`) and Medium B legs (`af_dwn_04`), with Hip Dips and Soft Butt off. It revises the first preparation's flat-looking nipple-region transition. `af-fitting-mesh.json` identifies this candidate; `af-fitting-mesh-v1.json` retains the previous version.
+28 November 2026. The user-accepted breast preparation is **v2**, based on standard Small chest (`af_top_01`) and Medium B legs (`af_dwn_04`), with Hip Dips and Soft Butt off. It revises the first preparation's flat-looking nipple-region transition. `af-fitting-mesh-chest-v2.json` retains this accepted stage; `af-fitting-mesh-v1.json` retains the first version. The subsequent [genital fitting pass](af-fitting-genital.md), identified by `af-fitting-mesh.json`, keeps the accepted breasts exact.
 
 This is the fitting copy. The original AF source assets and their movement data remain unchanged. The vanilla upscale is a static fitting reference; animating or rebuilding it in posed states is not a requirement for this pipeline. No further pose reconstruction is part of this preparation.
 
@@ -17,9 +17,9 @@ Normals are recalculated from the revised geometry and independently checked in 
 Current artifacts are under `outputs/af-fitting-chest-v2/`, with the same mesh/point filenames listed below. The previous `outputs/af-fitting-chest-v1/` files remain intact. Seven focused tests pass; both continuation methods recover a known curved surface below a synthetic bump and exclude the discarded feature from the fitted shape.
 
 ```powershell
-C:/Python310/python.exe prepare_af_fitting_chest.py
-C:/Python310/python.exe review_af_fitting_chest.py
-C:/Python310/python.exe audit_af_fitting_normals.py
+C:/Python310/python.exe prepare_af_fitting_chest.py --output outputs/af-fitting-chest-check --no-manifest
+C:/Python310/python.exe review_af_fitting_chest.py outputs/af-fitting-chest-check
+C:/Python310/python.exe audit_af_fitting_normals.py outputs/af-fitting-chest-check
 C:/Python310/python.exe -m unittest test_af_fitting_chest test_af_comparison test_reference_surface -v
 ```
 
@@ -63,8 +63,8 @@ Generated geometry stays in ignored `outputs/af-fitting-chest-v1/`:
 The tracked `af-fitting-mesh.json` identifies the candidate and hashes its mesh/data/point artifacts. It is separate from the vanilla `working-mesh.json`.
 
 ```powershell
-C:/Python310/python.exe prepare_af_fitting_chest.py --method cubic-v1 --output outputs/af-fitting-chest-v1 --no-manifest
-C:/Python310/python.exe review_af_fitting_chest.py outputs/af-fitting-chest-v1
+C:/Python310/python.exe prepare_af_fitting_chest.py --method cubic-v1 --output outputs/af-fitting-chest-v1-check --no-manifest
+C:/Python310/python.exe review_af_fitting_chest.py outputs/af-fitting-chest-v1-check
 C:/Python310/python.exe -m unittest test_af_fitting_chest test_af_comparison test_reference_surface -v
 ```
 
