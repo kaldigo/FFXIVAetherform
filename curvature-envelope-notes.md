@@ -58,6 +58,21 @@ The mean covered-region inward movement is 0.894 mm. The largest covered-region 
 
 All 948 landmark addresses and AF-side values replay unchanged; vanilla positions follow the final surface. Independent recalculation matches saved normals within 3.69e-16 vector error and the serialized OBJ within 8.60e-10. Review renders apply no normal texture. The original underwear remains at its original coordinates and is shown in the no-lift overlay.
 
+## Under-breast shape check
+
+The user's review accepts the seat appearance but questions the underside of the breasts. `measure_underbreast.py` measures 562 covered vertices with raw coordinates 25<=abs(X)<=100, 1180<=Y<=1220, Z>50 mm, excluding the central cleavage. It also plots exact unshaded front-depth sections at X=40, 60 and 80 mm.
+
+| Under-breast movement | From raw | Added by latest correction |
+|---|---:|---:|
+| Area-weighted mean inward motion | 1.449 mm | 0.574 mm |
+| Maximum inward motion | 3.381 mm | 1.907 mm |
+| Mean upward motion | 0.749 mm | 0.332 mm |
+| Maximum upward motion | 2.411 mm | 1.393 mm |
+
+The curve change is real: the latest fit draws parts of the underside inward and upward, softening the transition to the torso. After removing a best constant normal inset, additional displacement still varies by 0.546 mm RMS over this region. This confirms a nonuniform shape adjustment, though it is not a pure curvature-error metric. At fixed heights the apparent depth change can be larger because the curved underside also moves upward.
+
+This check does not alter the mesh. The broad underside curve should receive stronger protection in a subsequent chest revision while retaining the seat correction. The local outputs `underbreast-measurements.json` and `underbreast-profiles.png` make the result reviewable without lighting. The original raw profile contains garment geometry, so agreement with raw alone does not establish hidden anatomy.
+
 ## Validation scope
 
 The regression suite now contains 31 passing tests. New tests verify that known quadratic curvature is preserved and that direct final-surface fairness removes a raised patch caused by uneven inward movement while retaining inward bounds and fixed surrounding skin.
