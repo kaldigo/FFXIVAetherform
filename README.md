@@ -22,6 +22,8 @@ Well-aligned topology gives constraints suitable regions and degrees of freedom.
 
 The AF fitting mesh must retain the central cleavage recess. Clothing that spans it is handled by garment constraints; the body reference is not flattened to match a bra envelope.
 
+The lower fitting surface is intended to be a smooth contact surface comparable to the inner face of panties, prepared on an AF working copy. The [AF base comparison](af-base-comparison.md) supports Small chest and Medium B legs with Hip Dips and Soft Butt off as the working base. Small and XS are effectively tied by surface proximity; Small has the slightly better current paired-landmark score. The comparison identifies the seat, rear centre, underbody and chest as priority regions. No smoothing or wrap has been applied yet, and 2B fitting remains deferred.
+
 Use the base mesh, mesh normals and decoded normal-map information as shape evidence. Combine this with material, connectivity, skinning and author-defined behaviour. Normals inform shape; classifications define permitted deformation.
 
 - Rigid plates and attached gems: preserve dimensions and shape while following their supporting region by translation and rotation.
