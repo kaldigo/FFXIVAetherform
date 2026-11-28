@@ -20,6 +20,8 @@ Well-aligned topology gives constraints suitable regions and degrees of freedom.
 
 ## Shape and deformation constraints
 
+The AF fitting mesh must retain the central cleavage recess. Clothing that spans it is handled by garment constraints; the body reference is not flattened to match a bra envelope.
+
 Use the base mesh, mesh normals and decoded normal-map information as shape evidence. Combine this with material, connectivity, skinning and author-defined behaviour. Normals inform shape; classifications define permitted deformation.
 
 - Rigid plates and attached gems: preserve dimensions and shape while following their supporting region by translation and rotation.
@@ -93,6 +95,8 @@ Regression tests cover planar preservation, curved shared-edge continuity, confo
 ## Reusing the accepted wrap landmarks
 
 The [Coatee chest investigation](coatee-chest-investigation.md) identifies equipment-owned breast skin missing from the stock smallclothes skin. It records a sharper geometric cleavage dip than the bra-based reference, and a proposed local reference update. That update has not been applied to the reference or these landmarks.
+
+The [bottoms investigation](bottoms-investigation.md) compares stock briefs, Black Summer Tanga and No.2 Type B Leggings. The tanga is a close standard-vanilla comparison with verified local shared topology; 2B has substantially different seat and crotch geometry. Those findings are inspection results and do not modify the current body or point pairs.
 
 `transfer_landmarks.py` reuses the 948 retained named point pairs from the earlier flap-free body-wrap work. The previously excluded flap points remain excluded: Point085, Point089, Point094 and Point134. AF Small chest and Medium B leg coordinates and triangle addresses stay unchanged, with Hip Dips and Soft Butt off.
 

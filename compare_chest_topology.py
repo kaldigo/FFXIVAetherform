@@ -33,12 +33,20 @@ def vertex_at(vertices, point):
     return i
 
 
-def match(source,target):
+def match(source,target,seed_source=None,seed_target=None,anchors=None):
     v,t,ad,ae,_=source;w,u,bd,be,_=target
     # Inspectable lower-midline triangle: centre, next centre row, right inner point.
     # These establish the anatomical seed; connectivity determines propagation.
-    a=[vertex_at(v,p) for p in ((0,1194.596,105.210),(0,1218.558,103.554),(15.33,1218.94,103.14))]
-    b=[vertex_at(w,p) for p in ((0,1199.584,104.611),(0,1219.531,101.957),(13.22,1217.23,104.47))]
+    if seed_source is None:
+        seed_source=((0,1194.596,105.210),(0,1218.558,103.554),(15.33,1218.94,103.14))
+    if seed_target is None:
+        seed_target=((0,1199.584,104.611),(0,1219.531,101.957),(13.22,1217.23,104.47))
+    a=[vertex_at(v,p) for p in seed_source]
+    b=[vertex_at(w,p) for p in seed_target]
+    anchors={} if anchors is None else anchors
+    reserved={value:key for key,value in anchors.items()}
+    if any((i in anchors and anchors[i]!=j) or (j in reserved and reserved[j]!=i) for i,j in zip(a,b)):
+        raise ValueError('Seed contradicts a fixed correspondence')
     si=next(i for i,f in enumerate(t) if set(f)==set(a))
     ti=next(i for i,f in enumerate(u) if set(f)==set(b))
     mapping=dict(zip(a,b));reverse=dict(zip(b,a));pairs={si:ti};todo=deque([(si,ti)])
@@ -54,7 +62,9 @@ def match(source,target):
             a=next(k for k in t[ni] if k not in (x,y))
             b=next(k for k in u[nj] if k not in (mapping[x],mapping[y]))
             reason=None
-            if (a in mapping and mapping[a]!=b) or (b in reverse and reverse[b]!=a) or (ni in pairs and pairs[ni]!=nj):
+            if (a in anchors and anchors[a]!=b) or (b in reserved and reserved[b]!=a):
+                reason="conflicts with an unchanged shared position anchor"
+            elif (a in mapping and mapping[a]!=b) or (b in reverse and reverse[b]!=a) or (ni in pairs and pairs[ni]!=nj):
                 reason="inconsistent vertex or face assignment"
             elif (abs(v[a,0])<.001)!=(abs(w[b,0])<.001):
                 reason="centreline would map off centre"
