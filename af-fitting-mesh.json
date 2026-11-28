@@ -1,0 +1,37 @@
+{
+  "role": "AF fitting copy",
+  "stage": "Chest nipple curvature continuation, v1",
+  "status": "Prepared for user review",
+  "base": {
+    "chest": "af_top_01 / Small",
+    "legs": "af_dwn_04 / Medium B",
+    "hipDips": false,
+    "softButt": false,
+    "sourceHashes": {
+      "top": "b89306644180c9852f120d242183ef6be7615428ab9b4f83d2e3ed5fae639e71",
+      "legs": "7292f9e81a0d96a71ddcaa90f6939477bc9389cd359d4f4cc3e28e493c880ba5"
+    }
+  },
+  "vertices": 12289,
+  "triangles": 24290,
+  "artifacts": {
+    "af-fitting-reference.npz": {
+      "path": "outputs/af-fitting-chest-v1/af-fitting-reference.npz",
+      "sha256": "0f1330e58db402ff53b1fdff7f3fa62f9fb28b507e54ecf239498af5380f8316"
+    },
+    "AF-Fitting-Small-MediumB.obj": {
+      "path": "outputs/af-fitting-chest-v1/AF-Fitting-Small-MediumB.obj",
+      "sha256": "3ef59b8b115fd7f89504072a9a544e364cdf50515b7cacbfa2c1e273e888ea23"
+    },
+    "AF-Fitting.points.json": {
+      "path": "outputs/af-fitting-chest-v1/AF-Fitting.points.json",
+      "sha256": "2da405651bd802a1cfbef0f5f036f9c7fbfd533060f28236b5089e8a3d5adfad"
+    },
+    "af-fitting-landmarks.npz": {
+      "path": "outputs/af-fitting-chest-v1/af-fitting-landmarks.npz",
+      "sha256": "ae58207ba79d1ba87a1f45f511b0d2af262034671fb6d05ad56c31c1519f9be2"
+    }
+  },
+  "report": "outputs/af-fitting-chest-v1/af-fitting-chest-report.json",
+  "note": "Same AF native vertex/face order and point addresses; only localized nipple-region positions changed. The vanilla working-mesh.json is a separate reference and is unchanged."
+}
