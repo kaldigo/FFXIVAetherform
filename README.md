@@ -61,6 +61,8 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
+The [larger-fold and recessed-line repair](surface-repair-notes.md) investigates reconstruction creases and replaces three folded lower flap-root disks. It provides a separate candidate with rebound landmarks; some inner-thigh and seat creases remain. This also qualifies the original orientation checks below: passing orientation against a native face did not rule out a folded generated cap.
+
 The [fabric fold cleanup trial](vanilla-cleanup-trial.md) provides a separate smoothed comparison candidate. It reduces fine ripples with bounded changes and protects the cleavage; larger underwear construction creases remain. The original upscale and accepted landmark files are retained.
 
 `reference_surface.py` builds the vanilla body reference from the stock top and leg skin, using the close-fitting stock smallclothes for the covered regions. It removes the tail flap, reviewed bra and hip flaps, and detached decorative details. Six exposed flap roots are closed with 28 explicitly generated cap triangles. The neck, wrists and ankles remain open for their separate body parts.
