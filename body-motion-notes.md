@@ -2,6 +2,8 @@
 
 Tested the `bra-postprocess-v5` 4x candidate against both the raw normal-map reconstruction and the accepted pre-bra snapshot on 28 November 2026. The accepted snapshot and `working-mesh.json` remain intact. These results support the local chest edits; they do not certify the whole body for game animation.
 
+Follow-up: the [original-vanilla comparison](native-motion-comparison.md) now tests the actual low-density source geometry. It confirms both original pose contacts and additional deformation caused by skinning interpolated dense vertices. The raw reconstruction in this initial review is not the original vanilla mesh.
+
 ## Rig and coverage
 
 The installed vanilla c0201 skeleton supplies 106 bones, their actual hierarchy and reference transforms. All 29 named mesh influences resolve. Rest-pose skinning reproduces each input within 1e-9 mm. Per-corner weights agree at shared geometric vertices. All influences are retained, with at most five nonzero weights per vertex.

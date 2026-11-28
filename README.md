@@ -6,6 +6,8 @@ The user-accepted **4x working body** is snapshotted under `outputs/working-body
 
 The [controlled pose and animation review](body-motion-notes.md) tests the local bra candidate on the actual vanilla skeleton over 15 procedural clips. The edited chest passes the sampled crossing/fold/collapse checks. Deep bends reveal lower-body issues shared with the raw reconstruction; native game animation and live physics playback remain untested.
 
+The [original-vanilla motion comparison](native-motion-comparison.md) separates existing pose contacts from density-dependent deformation. Flat subdivision alone changes knee positions by up to 30.75 mm relative to the posed original surface. Two source-surface carry trials are diagnostic experiments; neither is adopted as a complete fix.
+
 ## Repository and publishing
 
 - Repository: https://github.com/kaldigo/FFXIVAetherform
