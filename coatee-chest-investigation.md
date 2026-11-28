@@ -39,6 +39,29 @@ The Coatee skin connects into the upper chest where the stock top already has sk
 
 ## Consequences for the wrapping reference
 
+## Shared local topology follow up
+
+The initial whole-mesh comparison did not establish whether the overlapping chest regions share a polygon layout. Different full triangle counts, coverage boundaries and vertex positions do not rule out the same local topology in a different shape. The earlier chat answer saying that the chest layouts did not match was too categorical.
+
+A seeded connectivity comparison now identifies a connected common patch containing **29 vertices and 30 triangles** between the cleaned stock bra and the Coatee skin. It verifies an injective vertex remapping, equality of every edge between the mapped vertices, and equality of the complete triangle complexes on those vertices. This establishes a real local topology correspondence despite the changed vertex positions.
+
+The seed is an inspected lower-centre chest triangle: the bottom centre, next centreline row and right inner vertex. Propagation follows triangle adjacency, retaining the centreline and left/right side, with a 45 mm displacement guard. The resulting match is bilateral. It is a verified candidate patch, not a maximal match or proof of shared authoring history. Propagation stops at eight extra/missing-edge conflicts and two attempts that would move a centreline vertex off centre. These flags indicate where this particular map cannot extend unchanged; they do not prove that a different correspondence, local edge edits or a subdivided common template cannot connect the surrounding regions.
+
+For fitting, the useful interpretation is that these surfaces can share a local template in different shapes. On the verified patch, map the corresponding vertices and triangle barycentric coordinates, then model the shape change through that correspondence. Do not discard that structure merely because source coordinates or whole-mesh counts differ. The flagged cleavage transitions and garment cuts still need explicit correspondence review before extending the mapping or changing the wrapping reference.
+
+Reproduce the connectivity comparison:
+
+```powershell
+C:/Python310/python.exe compare_chest_topology.py `
+  --reference outputs/vanilla-reference-v1/vanilla-reference.npz `
+  --coatee '../.work/morph-ten-review-20261120/assets/c0201e0038_top.json' `
+  --output outputs/coatee-chest-investigation/topology
+```
+
+The output includes `topology-report.json` and `shared-chest-topology.png`, showing identical numbered vertex connections on the two native shapes. Neither the body reference nor the 948 landmark pairs is changed by this comparison.
+
+## Applying the skin evidence
+
 The current PN reconstruction follows the available source mesh normals. Over the breasts these are bra-envelope normals, so the reconstruction cannot establish the different exposed-skin cleavage shape by itself. The body-reference workflow needs to distinguish observed skin from the clothing envelope used where skin is absent.
 
 The Coatee supplies a candidate observed-skin patch for the centre chest. A future reference update should use that patch where it supplies exposed skin, check its joins and weights against the surrounding stock skin, and retain explicitly identified coverage envelopes where anatomy remains unobserved. Other revealing garments can provide independent comparisons before choosing a common body reference. This Coatee does not expose a complete naked breast surface.
