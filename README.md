@@ -92,6 +92,8 @@ Regression tests cover planar preservation, curved shared-edge continuity, confo
 
 ## Reusing the accepted wrap landmarks
 
+The [Coatee chest investigation](coatee-chest-investigation.md) identifies equipment-owned breast skin missing from the stock smallclothes skin. It records a sharper geometric cleavage dip than the bra-based reference, and a proposed local reference update. That update has not been applied to the reference or these landmarks.
+
 `transfer_landmarks.py` reuses the 948 retained named point pairs from the earlier flap-free body-wrap work. The previously excluded flap points remain excluded: Point085, Point089, Point094 and Point134. AF Small chest and Medium B leg coordinates and triangle addresses stay unchanged, with Hip Dips and Soft Butt off.
 
 Vanilla points are transferred through the old subdivision lineage to their native triangle material locations, then rebound to the new curved mesh's child triangles. Their positions follow the new curved geometry. Their corresponding material locations remain unchanged within numerical precision; no nearest-surface projection is used. Five points formerly addressed on removed faces are rebound at the exact same shared root boundaries: Point004, Point009, Point014, Point049 and Point054.
