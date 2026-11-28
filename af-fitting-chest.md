@@ -24,6 +24,8 @@ The fitted central graph curvatures are approximately -0.02845 and -0.02599 per 
 
 Seven focused tests pass, covering native AF correspondence, the underlying reference operations and two curvature-continuation tests. The new tests recover a known curved surface beneath a synthetic nipple bump and verify that changing the discarded inner feature does not change the fitted replacement.
 
+Follow-up normal verification: `audit_af_fitting_normals.py` independently recalculates corner normals using atan2 angle weights. The saved NPZ matches within 1.51e-15 vector error; serialized OBJ normals match within 0.000000257 degrees. Normals across each inner 6 mm region vary by 18.84 degrees. The fresh export has the same surface and shading; any remaining flat-looking transition is not caused by stale normals. Geometry and the authoritative fitting manifest remain unchanged. `AF-Fitting-Fresh-Normals.obj` and `af-fitting-normal-verification.png` provide a fresh export and saved/fresh/flat-normal views.
+
 ## Files and reproduction
 
 Generated geometry stays in ignored `outputs/af-fitting-chest-v1/`:
