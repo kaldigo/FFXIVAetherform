@@ -2,3 +2,5 @@ __pycache__/
 outputs/
 inputs/
 .venv/
+**/bin/
+**/obj/

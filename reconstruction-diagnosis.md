@@ -1,5 +1,7 @@
 # Why the upscale diverges from vanilla
 
+Follow-up: [actual normal-map reconstruction and calibrated mapping/wrap levels](normal-map-reconstruction.md). The diagnosis below records the old PN method; the new candidates sample the installed normal textures and jointly solve the surface before any fabric filtering.
+
 Investigation, 28 November 2026, following the user's annotated butt, thigh and breast images. Stop treating those artifacts as individual dents to remove. First establish faithful reconstruction from the vanilla shading field. The original reference and accepted fitting points remain unchanged.
 
 ## Confirmed implementation mismatch

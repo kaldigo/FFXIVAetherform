@@ -61,6 +61,8 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
+The [actual normal-map reconstruction](normal-map-reconstruction.md) now builds calibrated **1x AF-density mapping** and **2x/4x AF-density wrap** candidates from native mesh geometry and the installed game's normal textures. It includes matched vanilla-normal-map comparisons, native lineage, weights and rebound points. No smoothing or fabric filtering is applied. Generated flap-root closures remain uncertified; the earlier PN and cleanup outputs below are historical experiments.
+
 **Reconstruction status:** the [native-normal comparison and diagnosis](reconstruction-diagnosis.md) demonstrates that the PN upscale introduces surface-direction errors absent from vanilla. The cleanup and local-repair candidates below are experimental symptom treatments and are not a validated fitting baseline. Normal-map textures have not yet been sampled.
 
 The [larger-fold and recessed-line repair](surface-repair-notes.md) investigates reconstruction creases and replaces three folded lower flap-root disks. It provides a separate candidate with rebound landmarks; some inner-thigh and seat creases remain. This also qualifies the original orientation checks below: passing orientation against a native face did not rule out a folded generated cap.
