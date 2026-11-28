@@ -1,5 +1,5 @@
 """Measure underside motion and plot unshaded fixed-X breast profiles."""
-import json
+import argparse,json
 from pathlib import Path
 import numpy as np
 from PIL import Image,ImageDraw,ImageFont
@@ -7,9 +7,9 @@ from investigate_coatee import front_depth
 from reference_surface import areas
 
 
-def run():
-    folder=Path('outputs/body-curvature-envelope-4x-w1000')
-    data=[np.load(Path(f)/'body-fit-reference.npz') for f in ('outputs/body-cleanup-4x-raw','outputs/body-inner-envelope-4x-collar12',str(folder))]
+def run(folder='outputs/body-curvature-envelope-4x-w1000',previous='outputs/body-inner-envelope-4x-collar12',label='Curvature correction',previous_label='Previous fit'):
+    folder=Path(folder)
+    data=[np.load(Path(f)/'body-fit-reference.npz') for f in ('outputs/body-cleanup-4x-raw',previous,str(folder))]
     raw,old,new=data;v,t=raw['position'],raw['triangles'];mass=np.zeros(len(v))
     for k in range(3):np.add.at(mass,t[:,k],areas(v[t])/3)
     mask=new['clothVertex']&(abs(v[:,0])>=25)&(abs(v[:,0])<=100)&(v[:,1]>=1180)&(v[:,1]<=1220)&(v[:,2]>50)
@@ -22,7 +22,7 @@ def run():
             meanUpwardMm=float(np.average(delta[:,1],weights=w)),maximumUpwardMm=float(delta[:,1].max())))
     report=dict(region='Raw material coordinates: 25<=abs(X)<=100, 1180<=Y<=1220, Z>50 mm, cloth-covered vertices; central cleavage excluded',
         vertices=int(mask.sum()),movement=rows,
-        interpretation='Latest correction changes the broad lower-breast curve as well as removing fabric detail. Positive upward movement draws some underside points higher. Shift variation after subtracting a constant inset confirms nonuniform movement; it is not a complete curvature error or anatomical ground truth.',
+        interpretation='Positive upward movement draws underside points higher. Shift variation after subtracting a constant inset measures nonuniform movement; it is not a complete curvature error or anatomical ground truth. Inspect the unshaded profiles to judge broad-curve preservation.',
         profileDefinition='Exact frontmost triangle intersections at fixed X and Y; no lighting, registration or compensating offsets. Depth changes at a fixed height also reflect upward motion of a sloping surface.')
     (folder/'underbreast-measurements.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
     profiles=[];ys=np.arange(1175.,1241.,1.)
@@ -38,7 +38,7 @@ def run():
         profiles.append(curves)
     im=Image.new('RGB',(1740,940),'#18202a');draw=ImageDraw.Draw(im)
     font=ImageFont.truetype('C:/Windows/Fonts/segoeui.ttf',22);small=ImageFont.truetype('C:/Windows/Fonts/segoeui.ttf',18)
-    colors=['#65ccf5','#ffbf62','#83df97'];labels=['Raw','Previous fit','Curvature correction']
+    colors=['#65ccf5','#ffbf62','#83df97'];labels=['Raw',previous_label,label]
     archive=dict(heightMm=ys)
     for col,(x,curves) in enumerate(zip((40,60,80),profiles)):
         left=75+580*col;top=90;width=455;height=660;lo=np.floor(min(c.min() for c in curves)-1);hi=np.ceil(max(c.max() for c in curves)+1)
@@ -56,4 +56,7 @@ def run():
     im.save(folder/'underbreast-profiles.png');np.savez_compressed(folder/'underbreast-profiles.npz',**archive)
 
 
-if __name__=='__main__':run()
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/body-curvature-envelope-4x-w1000')
+    p.add_argument('--previous',default='outputs/body-inner-envelope-4x-collar12');p.add_argument('--label',default='Curvature correction')
+    p.add_argument('--previous-label',default='Previous fit');a=p.parse_args();run(a.folder,a.previous,a.label,a.previous_label)

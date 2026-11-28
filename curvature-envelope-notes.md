@@ -1,5 +1,7 @@
 # Control final curvature in the 4x inner-envelope fit
 
+The subsequent [protected underside trial and lower-body audit](protected-underbreast-notes.md) preserves more under-breast shape and flags a significant crotch rise in this candidate. Its whole lower body should not be considered accepted solely from the improved butt views.
+
 This experiment corrects the relative dip-to-bump changes identified in the upper outer seat and tests the same change on the chest. It retains the raw 4x topology, skin anchors, inward-only displacement bounds, UVs, named weights and all 948 landmark addresses. No garment lift or constant thickness allowance is introduced. The earlier [inward-envelope experiment](inner-envelope-notes.md) remains a separate comparison.
 
 ## Change to the objective

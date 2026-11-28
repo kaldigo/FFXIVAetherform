@@ -43,9 +43,11 @@ def profiles(d):
     return dict(seatY=ys,rearZ=rear,breastX=x,breastZ=breast,cleavageY=cy,cleavageZ=cleavage)
 
 
-def run(folder,previous=None):
+def run(folder,previous=None,label=None,previous_label=None):
     folder=Path(folder);folders=[Path('outputs/body-cleanup-4x-raw'),Path(previous or 'outputs/body-separation-4x-s6'),folder]
     names=['Raw 4x relief','Previous inward envelope' if previous else 'Previous 6 mm separation','Final-curvature envelope' if previous else 'Skin-anchored average / inward envelope']
+    if label:names[2]=label
+    if previous_label:names[1]=previous_label
     data=[dict(np.load(f/'body-fit-reference.npz')) for f in folders];raw,old,new=data
     t=raw['triangles'];assert np.array_equal(t,new['triangles'])
     for key in ('uv','weights','boneNames','group'):np.testing.assert_array_equal(raw[key],new[key])
@@ -112,4 +114,4 @@ def run(folder,previous=None):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/body-inner-envelope-4x-collar12');p.add_argument('--previous');a=p.parse_args();run(a.folder,a.previous)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/body-inner-envelope-4x-collar12');p.add_argument('--previous');p.add_argument('--label');p.add_argument('--previous-label');a=p.parse_args();run(a.folder,a.previous,a.label,a.previous_label)

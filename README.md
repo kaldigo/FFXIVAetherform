@@ -61,7 +61,9 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
-The [final-curvature correction trial](curvature-envelope-notes.md) adds direct control of the final surface's local quadratic residual to the inward envelope fit. It targets the dip-to-bump changes in the circled seat patches and compares the chest against the earlier candidate. The reconstructed cleavage root remains a review issue.
+The [protected under-breast trial and lower-body audit](protected-underbreast-notes.md) preserves more of the broad underside curve while filtering fabric detail. The current butt/lower-body coordinates are retained for comparison, but the audit flags a substantial crotch rise before lower-body acceptance. Cleavage and strap/clasp reconstruction are deferred to a later post-process.
+
+The [final-curvature correction trial](curvature-envelope-notes.md) adds direct control of the final surface's local quadratic residual to the inward envelope fit. It targets the dip-to-bump changes in the circled seat patches and compares the chest against the earlier candidate. Its under-breast curve changes motivated the protected trial above.
 
 The [skin-anchored inner-envelope trial](inner-envelope-notes.md) fits average local curves on the raw 4x geometry, then continues a smooth inward correction from the surrounding skin. It adds no fixed thickness or garment lift. The original underwear stays at its original coordinates. Its relative dip-to-bump changes showed that smoothness of the correction alone was insufficient.
 
