@@ -1,5 +1,7 @@
 # Larger folds and recessed-line repair
 
+**Superseded as the development direction:** the [reconstruction diagnosis](reconstruction-diagnosis.md) demonstrates a normal-field mismatch in the original PN construction. The user requested examining that cause instead of repairing individual butt/thigh artifacts. The candidates described here remain experiments; they are not a validated baseline or the proposed solution to the reconstruction fault.
+
 Local experiment, 28 November 2026. The accepted vanilla reference, first cleanup, AF meshes and accepted landmark selections remain unchanged. The new candidate is `outputs/vanilla-repair-v1/vanilla-repaired.obj`, with its matching `Vanilla-Repaired.points.json`. The NPZ retains skinning and provenance; OBJ does not carry bone weights.
 
 ## Findings

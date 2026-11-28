@@ -61,6 +61,8 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
+**Reconstruction status:** the [native-normal comparison and diagnosis](reconstruction-diagnosis.md) demonstrates that the PN upscale introduces surface-direction errors absent from vanilla. The cleanup and local-repair candidates below are experimental symptom treatments and are not a validated fitting baseline. Normal-map textures have not yet been sampled.
+
 The [larger-fold and recessed-line repair](surface-repair-notes.md) investigates reconstruction creases and replaces three folded lower flap-root disks. It provides a separate candidate with rebound landmarks; some inner-thigh and seat creases remain. This also qualifies the original orientation checks below: passing orientation against a native face did not rule out a folded generated cap.
 
 The [fabric fold cleanup trial](vanilla-cleanup-trial.md) provides a separate smoothed comparison candidate. It reduces fine ripples with bounded changes and protects the cleavage; larger underwear construction creases remain. The original upscale and accepted landmark files are retained.
