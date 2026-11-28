@@ -1,0 +1,38 @@
+{
+  "role": "AF fitting copy",
+  "stage": "Accepted breast v2 plus genital envelope",
+  "status": "Lower-body candidate prepared for review",
+  "base": {
+    "chest": "af_top_01 / Small",
+    "legs": "af_dwn_04 / Medium B",
+    "hipDips": false,
+    "softButt": false,
+    "sourceHashes": {
+      "top": "b89306644180c9852f120d242183ef6be7615428ab9b4f83d2e3ed5fae639e71",
+      "legs": "7292f9e81a0d96a71ddcaa90f6939477bc9389cd359d4f4cc3e28e493c880ba5"
+    }
+  },
+  "vertices": 12289,
+  "triangles": 24290,
+  "artifacts": {
+    "af-fitting-reference.npz": {
+      "path": "outputs/af-fitting-genital-v3/af-fitting-reference.npz",
+      "sha256": "f3b667ced8111c600c459e578dc3d592aa38ab260dea2951d4dae808128daff9"
+    },
+    "AF-Fitting-Small-MediumB.obj": {
+      "path": "outputs/af-fitting-genital-v3/AF-Fitting-Small-MediumB.obj",
+      "sha256": "53eed1b2fed33697302ccc387af5791692e4b1148518ba0dd339ee37047249be"
+    },
+    "AF-Fitting.points.json": {
+      "path": "outputs/af-fitting-genital-v3/AF-Fitting.points.json",
+      "sha256": "2da405651bd802a1cfbef0f5f036f9c7fbfd533060f28236b5089e8a3d5adfad"
+    },
+    "af-fitting-landmarks.npz": {
+      "path": "outputs/af-fitting-genital-v3/af-fitting-landmarks.npz",
+      "sha256": "bef88c259539b3d695c133446a47a962487ac15ccd451c239b55804110f64d8c"
+    }
+  },
+  "report": "outputs/af-fitting-genital-v3/af-fitting-genital-report.json",
+  "acceptedBreastManifest": "af-fitting-mesh-chest-v2.json",
+  "note": "Original topology, UVs, weights and point addresses retained. Butt curve and thigh gap protected. Rear cleft/anal fitting envelope remains pending."
+}

@@ -19,13 +19,16 @@ def cut_segments(p,axis,value):
     return np.array(segments)
 
 
-def run(folder='outputs/af-fitting-genital-v3'):
+def run(folder='outputs/af-fitting-genital-v4'):
     out=Path(folder);d=dict(np.load(out/'af-fitting-reference.npz'));v=d['parentPosition'];q=d['position'];t=d['triangles'];diag=dict(np.load(out/'genital-diagnostics.npz'))
     font=ImageFont.truetype('C:/Windows/Fonts/segoeui.ttf',20)
-    im=Image.new('RGB',(1200,1840),'#182129');draw=ImageDraw.Draw(im)
+    versions=[('Original AF',v)]
+    if 'previousGenitalPosition' in d:versions.append(('Previous envelope',d['previousGenitalPosition']))
+    versions.append(('Revised envelope',q));width=600*len(versions)
+    im=Image.new('RGB',(width,1840),'#182129');draw=ImageDraw.Draw(im)
     views=[('Front / thigh gap','front',(-90,90,790,945)),('Under / genital surface','under',(-40,40,-20,95)),
         ('Under / wider fitting surface','under',(-90,90,-105,95)),('Cutaway / inward folds','side',(-20,95,830,925))]
-    for col,(label,p) in enumerate((('Before',v),('Fitting envelope',q))):
+    for col,(label,p) in enumerate(versions):
         ns=normals(p,t)
         for row,(title,view,bounds) in enumerate(views):
             selected=np.ones(len(t),bool)
@@ -33,7 +36,7 @@ def run(folder='outputs/af-fitting-genital-v3'):
             img=raster(p[t[selected]],view,bounds,(600,400),vertex_normals=ns[t[selected]])[0]
             x=col*600;y=row*460;im.paste(img,(x,y+50));draw.text((x+12,y+9),label+' / '+title,font=font,fill='white')
     im.save(out/'af-genital-fitting-comparison.png')
-    im.crop((0,0,1200,920)).save(out/'af-genital-fitting-overview.png')
+    im.crop((0,0,width,920)).save(out/'af-genital-fitting-overview.png')
     frame=diag['frame'];origin=diag['origin'];faces=diag['faces']
     im=Image.new('RGB',(1400,620),'#182129');draw=ImageDraw.Draw(im)
     for col,(axis,cut,title,lo,hi) in enumerate(((0,.2,'Along slit, X = 0.2 mm',-35,90),(1,5.,'Across slit, local S = 5 mm',-22,22))):
@@ -44,15 +47,30 @@ def run(folder='outputs/af-fitting-genital-v3'):
             draw.line([point(lo,h),point(hi,h)],fill='#354552');draw.text((left-40,point(lo,h)[1]-10),str(h),font=font,fill='white')
         for x in ([-20,0,20,40,60,80] if col==0 else [-20,-10,0,10,20]):
             a,b=point(x,-25),point(x,18);draw.line([a,b],fill='#354552');draw.text((a[0]-12,top+height+7),str(x),font=font,fill='white')
-        for p,color in ((v,'#ffbc70'),(q,'#7ce3ba')):
+        lines=[(v,'#ffbc70')]
+        if 'previousGenitalPosition' in d:lines.append((d['previousGenitalPosition'],'#72bbff'))
+        lines.append((q,'#7ce3ba'))
+        for p,color in lines:
             local=(p-origin)@frame;segments=cut_segments(local[t[faces]],axis,cut)
             for a,b in segments:
                 if max(a[display_axis],b[display_axis])>=lo and min(a[display_axis],b[display_axis])<=hi:
                     draw.line([point(a[display_axis],a[2]),point(b[display_axis],b[2])],fill=color,width=3)
-    draw.text((80,565),'Orange: original folds    Green: fitting envelope    Exact triangle sections; coordinates in mm.',font=font,fill='white')
+    draw.text((55,565),'Orange: original    Blue: previous    Green: revised    Exact mesh sections; mm.',font=font,fill='white')
     im.save(out/'af-genital-envelope-sections.png')
+    im=Image.new('RGB',(1100,600),'#182129');draw=ImageDraw.Draw(im)
+    draw.text((55,12),'Centre profile: higher line = less downward projection',font=font,fill='white')
+    def world_point(z,y):return 70+(z+8)/85*950,60+(875-y)/38*440
+    for y in range(840,876,5):
+        a,b=world_point(-8,y),world_point(77,y);draw.line([a,b],fill='#354552');draw.text((20,a[1]-10),str(y),font=font,fill='white')
+    for z in range(0,71,10):
+        a,b=world_point(z,837),world_point(z,875);draw.line([a,b],fill='#354552');draw.text((a[0]-8,510),str(z),font=font,fill='white')
+    for p,color in lines:
+        segments=cut_segments(p[t[faces]],0,.2)
+        for a,b in segments:draw.line([world_point(a[2],a[1]),world_point(b[2],b[1])],fill=color,width=3)
+    draw.text((65,555),'Orange: original    Blue: previous    Green: revised    World Y/Z in mm',font=font,fill='white')
+    im.save(out/'af-genital-centre-profile.png')
     print('Saved before/after, cutaway and exact mesh-section comparisons')
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/af-fitting-genital-v3');run(p.parse_args().folder)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/af-fitting-genital-v4');run(p.parse_args().folder)

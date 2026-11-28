@@ -1,6 +1,6 @@
 # AF lower fitting surface: genital pass
 
-The user accepted breast preparation v2. Its mesh/data remain unchanged under `outputs/af-fitting-chest-v2/`, now identified by `af-fitting-mesh-chest-v2.json`. The current `af-fitting-mesh.json` identifies that accepted chest plus a separate **genital fitting-envelope candidate**, under `outputs/af-fitting-genital-v3/`.
+The user accepted breast preparation v2. Its mesh/data remain unchanged under `outputs/af-fitting-chest-v2/`, identified by `af-fitting-mesh-chest-v2.json`. This page records the initial genital unfolding, v3, retained in `af-fitting-mesh-genital-v3.json`. The current `af-fitting-mesh.json` identifies the subsequent [flatter close-cover revision, v4](af-fitting-tight-cover.md), which raises the low peak and follows the original crests more closely.
 
 This starts the lower-body fitting surface. The rear cleft and anal detail are not changed in this pass. No external panties reference or constant thickness offset is used.
 
@@ -49,9 +49,9 @@ Generated assets remain ignored by Git in `outputs/af-fitting-genital-v3/`:
 Cutaways omit the near-side faces for inspection. The model-part openings visible in the wider underside views are original AF boundaries; this edit adds no openings.
 
 ```powershell
-C:/Python310/python.exe prepare_af_fitting_genital.py
-C:/Python310/python.exe review_af_fitting_genital.py
-C:/Python310/python.exe audit_af_lower_fit.py
+C:/Python310/python.exe prepare_af_fitting_genital.py --output outputs/af-fitting-genital-check --no-manifest
+C:/Python310/python.exe review_af_fitting_genital.py outputs/af-fitting-genital-check
+C:/Python310/python.exe audit_af_lower_fit.py outputs/af-fitting-genital-check
 C:/Python310/python.exe -m unittest test_af_fitting_genital test_af_fitting_chest test_af_comparison test_reference_surface -v
 ```
 

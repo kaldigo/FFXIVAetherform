@@ -1,7 +1,7 @@
 {
   "role": "AF fitting copy",
-  "stage": "Accepted breast v2 plus genital envelope",
-  "status": "Lower-body candidate prepared for review",
+  "stage": "Accepted breast v2 plus flatter close-cover genital envelope",
+  "status": "Lower-body revision prepared for review",
   "base": {
     "chest": "af_top_01 / Small",
     "legs": "af_dwn_04 / Medium B",
@@ -16,23 +16,23 @@
   "triangles": 24290,
   "artifacts": {
     "af-fitting-reference.npz": {
-      "path": "outputs/af-fitting-genital-v3/af-fitting-reference.npz",
-      "sha256": "f3b667ced8111c600c459e578dc3d592aa38ab260dea2951d4dae808128daff9"
+      "path": "outputs/af-fitting-genital-v4/af-fitting-reference.npz",
+      "sha256": "b928fa7a59d81c9615159f692bcb06d1174e83e3135099f048af78c01b4018b7"
     },
     "AF-Fitting-Small-MediumB.obj": {
-      "path": "outputs/af-fitting-genital-v3/AF-Fitting-Small-MediumB.obj",
-      "sha256": "53eed1b2fed33697302ccc387af5791692e4b1148518ba0dd339ee37047249be"
+      "path": "outputs/af-fitting-genital-v4/AF-Fitting-Small-MediumB.obj",
+      "sha256": "3628acb2fca77214678328fd78f7ce2d68b46f61e5c4e72e480c3b909f1005ad"
     },
     "AF-Fitting.points.json": {
-      "path": "outputs/af-fitting-genital-v3/AF-Fitting.points.json",
+      "path": "outputs/af-fitting-genital-v4/AF-Fitting.points.json",
       "sha256": "2da405651bd802a1cfbef0f5f036f9c7fbfd533060f28236b5089e8a3d5adfad"
     },
     "af-fitting-landmarks.npz": {
-      "path": "outputs/af-fitting-genital-v3/af-fitting-landmarks.npz",
-      "sha256": "bef88c259539b3d695c133446a47a962487ac15ccd451c239b55804110f64d8c"
+      "path": "outputs/af-fitting-genital-v4/af-fitting-landmarks.npz",
+      "sha256": "f61112fbb82c70b7ddafefa2931562ff114a78f905baa486b4a98900adc17a53"
     }
   },
-  "report": "outputs/af-fitting-genital-v3/af-fitting-genital-report.json",
+  "report": "outputs/af-fitting-genital-v4/af-tight-cover-report.json",
   "acceptedBreastManifest": "af-fitting-mesh-chest-v2.json",
   "note": "Original topology, UVs, weights and point addresses retained. Butt curve and thigh gap protected. Rear cleft/anal fitting envelope remains pending."
 }

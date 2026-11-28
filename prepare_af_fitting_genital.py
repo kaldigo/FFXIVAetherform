@@ -50,7 +50,7 @@ def disk_chart(v,t,selected,frame,origin,rings=2):
         originalProjectedArea=before,projectedArea=after)
 
 
-def side_slope_model(local,normals_local,mass):
+def side_slope_model(local,normals_local,mass,transverse_curvature=True):
     """Moving quadratic Hermite fits to the skin on both sides of the slit."""
     good=(abs(local[:,0])>=9)&(abs(local[:,0])<=24)&(normals_local[:,2]>.3)
     good&=(local[:,1]>-45)&(local[:,1]<110)&(local[:,2]>-40)&(local[:,2]<40)
@@ -65,10 +65,12 @@ def side_slope_model(local,normals_local,mass):
             a=np.column_stack((np.ones(len(p)),dx,ds,dx*dx,dx*ds,ds*ds))
             ax=np.column_stack((np.zeros(len(p)),np.ones(len(p)),np.zeros(len(p)),2*dx,ds,np.zeros(len(p))))/12
             az=np.column_stack((np.zeros(len(p)),np.zeros(len(p)),np.ones(len(p)),np.zeros(len(p)),dx,2*ds))/14
+            columns=np.arange(6) if transverse_curvature else np.array([0,1,2,4,5])
+            a,ax,az=a[:,columns],ax[:,columns],az[:,columns]
             matrix=np.r_[a[selected]*root[:,None],4*ax[selected]*root[:,None],4*az[selected]*root[:,None]]
             rhs=np.r_[p[selected,2]*root,4*g[selected,0]*root,4*g[selected,1]*root]
             coef=np.linalg.lstsq(matrix,rhs,rcond=None)[0];xx=x/12
-            result.append(coef@np.array([1,xx,0,xx*xx,0,0]))
+            result.append(coef@np.array([1,xx,0,xx*xx,0,0])[columns])
             fit_residual.append(float(np.sqrt(np.average((a[selected]@coef-p[selected,2])**2,weights=weight[selected]))))
         return np.array(result)
     return evaluate,sample,fit_residual
