@@ -16,6 +16,8 @@ These are controlled linear skinning tests on the native skeleton. No native gam
 
 Across all sampled frames the combined edited cleavage/seam region has **zero detected nonadjacent crossings, folded triangles, or near-collapsed triangles**. Crossings are checked against the entire posed body. Shared-vertex triangle pairs are excluded. A fold means reversal against the inverse-transpose blended deformation normal; a near-collapse means minimum tangent stretch below 0.05. These are finite sampled diagnostics, not a proof of collision freedom between frames.
 
+Passing these checks does not mean zero strain. In the deliberate opposing breast-rotation test, the postprocessed chest reaches a maximum tangent stretch of 1.464 and minimum of 0.574, compared with 1.490 and 0.551 before postprocessing. Its worst-frame 99th percentile maximum stretch is 1.228 versus 1.247 before. The patch modestly improves this severe test, but the remaining strain should be judged against actual breast-bone motion before using it as a garment deformation constraint.
+
 Full-body intersections are checked at the declared peak of each clip. Twelve clips have no detected peak intersection. Three deep bends expose issues also present in the raw reconstruction:
 
 | Clip | Raw intersection pairs | Postprocessed pairs | Location in rest coordinates |
