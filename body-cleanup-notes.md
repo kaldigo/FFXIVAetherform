@@ -1,5 +1,7 @@
 # Body-specific flap and underwear-relief cleanup
 
+Follow-up: [4x raw/neutral shape separation](body-shape-separation.md) tests retaining broad shape while removing finer relief, including an explicit inward allowance. The blur below remains the earlier control; the new separation trial does not overwrite these outputs.
+
 28 November 2026. Retain the bra/briefs mesh envelope, remove irrelevant flaps and reduce fabric relief. Do not remove the underwear geometry, infer hidden naked anatomy or apply a thickness offset yet.
 
 ## Selected treatment: blurred normal relief

@@ -50,7 +50,7 @@ def audit(folder,raw_folder):
     result=dict(status='Passed',mode=report['mode'],connectivity=connectivity,rebuiltRoots=6,
                 capBoundaryAndMedialPinsExact=True,patchesAreSingleValuedInTheirCharts=True,
                 retainedUVsAndWeightsExact=True,weightsNonnegativeAndNormalized=True,landmarks=948,unchangedAFPoints=True,
-                offsetMm=0,underwearEnvelopeRetained=True,afDensityBySlot=ratios,
+                offsetMm=report['offsetMm'],underwearEnvelopeRetained=True,afDensityBySlot=ratios,
                 filteringMovementBeforeCapRebuildMm=dict(max=float(difference.max()),p95=float(np.percentile(difference,95)),
                  clothP95=float(np.percentile(difference[cloth],95)),outerSkinP95=float(np.percentile(difference[skin],95))),
                 profiles=profiles,triangles=len(t),vertices=len(v),

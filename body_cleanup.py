@@ -1,6 +1,7 @@
 """Body-only cloth-relief filtering and reconstruction of removed flap roots.
 
-The smallclothes envelope remains. No thickness offset or naked-body inference.
+The smallclothes envelope remains. This CLI applies no thickness offset;
+callers of finalize may explicitly label an inward trial allowance.
 """
 import argparse,json
 from pathlib import Path
@@ -123,11 +124,16 @@ def run(args):
         reconstruct(SimpleNamespace(reference='outputs/vanilla-reference-v1/vanilla-reference.npz',assets='outputs/normal-map-assets-v1',
                                     control=Path(args.raw)/'control.npz',output=out,position_weight=.0001),field)
         path=out/'normal-map-reference.npz'
-    before=dict(np.load(path));result,patches=close_roots(before)
-    result.update(clothFilterMode=np.array(args.mode),bodyOffsetMm=np.array(0.))
+    return finalize(dict(np.load(path)),args.raw,out,args.mode)
+
+
+def finalize(before,raw_folder,out,mode,offset_mm=0.,extra_report=None):
+    out=Path(out);out.mkdir(parents=True,exist_ok=True)
+    result,patches=close_roots(before)
+    result.update(clothFilterMode=np.array(mode),bodyOffsetMm=np.array(offset_mm))
     connectivity=boundaries(result['triangles'])
     if connectivity['openBoundaryLoops']!=5:raise ValueError('Unexpected body openings')
-    lm=dict(np.load(Path(args.raw)/'paired-landmarks-candidate.npz'))
+    lm=dict(np.load(Path(raw_folder)/'paired-landmarks-candidate.npz'))
     paired,rebound=bind_points(before,result,patches,lm,result['position'])
     np.savez_compressed(out/'body-fit-reference.npz',**result);np.savez_compressed(out/'paired-landmarks-candidate.npz',**paired)
     write_obj(out/'vanilla-body-fit.obj',result['position'],result['triangles'],result['normal'],result['uv'],result['group'])
@@ -137,11 +143,13 @@ def run(args):
         after=np.zeros(len(result['triangles']),bool);after[patch['firstNewFace']:patch['firstNewFace']+patch['newFaceCount']]=True
         patch['beforeJumps']=jump_stats(before['position'],before['triangles'],mask);patch['afterJumps']=jump_stats(result['position'],result['triangles'],after)
         for key in ('oldFaces','loop','origin','basis','fixedVertexIds'):patch[key]=patch[key].tolist()
-    report=dict(mode=args.mode,offsetMm=0,underwearEnvelopeRetained=True,patches=patches,
+    report=dict(mode=mode,offsetMm=offset_mm,underwearEnvelopeRetained=True,patches=patches,
                 connectivity=connectivity,vertices=len(result['position']),triangles=len(result['triangles']),
                 landmarks=len(paired['names']),chartReboundPoints=rebound,
-                scope='Body-only candidate: existing flap removal retained, all six roots rebuilt; '+('raw relief retained' if args.mode=='raw' else 'cloth relief filtered')+' without underwear removal or thickness offset.')
+                scope='Body-only candidate: existing flap removal retained, all six roots rebuilt; '+('raw relief retained' if mode=='raw' else 'cloth relief filtered')+'; underwear envelope retained. Explicit inward allowance '+str(offset_mm)+' mm.')
+    if extra_report:report.update(extra_report)
     (out/'body-cleanup-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({k:v for k,v in report.items() if k!='patches'},indent=2))
+    return result,report
 
 
 if __name__=='__main__':

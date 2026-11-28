@@ -61,6 +61,8 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
+The [4x shape/detail separation trial](body-shape-separation.md) combines neutralised geometry with the broad raw-minus-neutral displacement. It compares raw, blurred, neutralised and separated surfaces, with a labelled 0.5 mm inward allowance. The 6 mm trial best preserves the sampled seat, breast and cleavage shapes among the tested scales; existing mapping/wrap references remain unchanged.
+
 The [body-specific cleanup](body-cleanup-notes.md) follows reconstruction: retain the underwear envelope, blur its normal-map relief, and rebuild all six removed-flap roots. The selected outputs keep **1x mapping / 2x or 4x wrap** roles. Neutralising the cloth normals is retained as a rejected shape-preservation comparison. No thickness offset is applied.
 
 The [actual normal-map reconstruction](normal-map-reconstruction.md) now builds calibrated **1x AF-density mapping** and **2x/4x AF-density wrap** candidates from native mesh geometry and the installed game's normal textures. It includes matched vanilla-normal-map comparisons, native lineage, weights and rebound points. No smoothing or fabric filtering is applied. Generated flap-root closures remain uncertified; the earlier PN and cleanup outputs below are historical experiments.
