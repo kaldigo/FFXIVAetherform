@@ -2,6 +2,8 @@
 
 Working area for custom refit authoring using paired AF body surfaces, garment retopology and constrained deformation.
 
+The user-accepted **4x working body** is snapshotted under `outputs/working-body-4x/`, with artifact hashes and matching point files recorded in [working-mesh.json](working-mesh.json). Post-processing trials use separate outputs. The [local bra seam/cleavage investigation](bra-postprocessing-notes.md) implements the proposed surrounding-angle approach without replacing that accepted snapshot.
+
 ## Repository and publishing
 
 - Repository: https://github.com/kaldigo/FFXIVAetherform

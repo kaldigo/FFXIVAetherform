@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "status": "User-accepted working mesh before bra-seam/cleavage post-processing",
+  "acceptedDate": "2026-11-28",
+  "sourceFolder": "outputs/body-protected-crotch-4x",
+  "workingFolder": "outputs/working-body-4x",
+  "densityRole": "4x AF-density wrap working surface; existing 1x mapping surface is unchanged",
+  "vertices": 47904,
+  "triangles": 95630,
+  "pairedLandmarks": 948,
+  "artifacts": {
+    "body-fit-reference.npz": {
+      "path": "outputs/working-body-4x/body-fit-reference.npz",
+      "sha256": "139da5e6e7597a8fdf3d13f10498953b92a4d389386e1f3aba58f85a4bc7b1f2"
+    },
+    "vanilla-body-fit.obj": {
+      "path": "outputs/working-body-4x/vanilla-body-fit.obj",
+      "sha256": "25d6d4ee95ae8348e2646be847d6c143f763933cc7060a73d49ce4711caa17fd"
+    },
+    "paired-landmarks-candidate.npz": {
+      "path": "outputs/working-body-4x/paired-landmarks-candidate.npz",
+      "sha256": "0e8de9321534cded31a83fb36061ca84ec9f5b0935c009e710971f1115e2d1af"
+    },
+    "Vanilla-BodyFit.points.json": {
+      "path": "outputs/working-body-4x/Vanilla-BodyFit.points.json",
+      "sha256": "a98c2c21c6f3ef1968e8005c3d972bd629dc9b13f414b87f01264431fc16b278"
+    },
+    "protected-crotch-report.json": {
+      "path": "outputs/working-body-4x/protected-crotch-report.json",
+      "sha256": "167e04fbbdcded3ddb47cbbd39e12ab5dc6638165ace369f128d523e83cc4da3"
+    },
+    "envelope-audit.json": {
+      "path": "outputs/working-body-4x/envelope-audit.json",
+      "sha256": "5a7f8536956c34060227366230eb043f91e39fb3ab0defb1873c06ee115a7474"
+    },
+    "normal-update-audit.json": {
+      "path": "outputs/working-body-4x/normal-update-audit.json",
+      "sha256": "72a64c1611b48e6a31e83c5bcba6274dd3546a74ae59d3f50cee45988a58c046"
+    },
+    "crotch-shape-review.json": {
+      "path": "outputs/working-body-4x/crotch-shape-review.json",
+      "sha256": "4b9b7d8fafae6d89215e79d206fca3798c1741cc1ac63d487c57f18aac0fc4ab"
+    }
+  },
+  "pendingPostProcessing": [
+    "Bra band/seam reconstruction",
+    "Cleavage and generated medial-root reconstruction",
+    "Bra strap/clasp review"
+  ],
+  "preservation": "Use separate output folders for post-processing trials. Keep this accepted snapshot and the lower-body/under-breast shape available for exact comparison."
+}

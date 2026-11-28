@@ -1,5 +1,7 @@
 # Preserve the sharper crotch and inner-thigh transitions
 
+The user accepted this result as the working mesh. It is preserved as the hashed snapshot referenced by [working-mesh.json](working-mesh.json). [Bra post-processing trials](bra-postprocessing-notes.md) are separate candidates and do not replace it.
+
 The user accepted the protected under-breast result and current butt appearance as the working base. Bra seam and cleavage cleanup are reserved for post-processing; strap/clasp reconstruction is also deferred. The remaining request is a protected crotch run because broad fairness rounded the sharper transitions between the thighs and raised the centre excessively.
 
 ## Local correction
