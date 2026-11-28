@@ -116,10 +116,10 @@ def integrate_height(v,t,target,valid,directions,position_weight,checkpoint=None
     return v+height[:,None]*directions
 
 
-def run(args):
+def run(args,normal_field=None):
     if args.position_weight<=0:raise ValueError('Position weight must be positive')
     d=dict(np.load(args.reference));out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
-    field=NormalField(d,args.assets)
+    field=normal_field if normal_field is not None else NormalField(d,args.assets)
     if args.control:
         control=np.load(args.control);v,t=control['position'],control['triangles'];d['sourceFace']=control['sourceFace'];d['sourceBarycentric']=control['sourceBarycentric']
         d['flatPosition']=v;d['triangles']=t
@@ -152,8 +152,9 @@ def run(args):
         for slot,spec in density['slots'].items():
             select=np.char.startswith(d['group'],slot+'_')
             density['reconstructedAFDensityBySlot'][slot]=float(select.sum()/face_area[select].sum()*spec['afMeanTriangleAreaMm2'])
-    report=dict(method='Height normal-field integration with position prior and orientation barrier; no smoothing/fabric filtering',
+    report=dict(method='Height normal-field integration with position prior and orientation barrier; no post-solve geometry smoothing',
                 positionWeight=args.position_weight,solver=json.loads((out/'solve-height.json').read_text()),
+                normalFieldSettings=getattr(field,'settings',{'clothRelief':'original'}),
                 density=density,
                 nativeFlatGeometryError=error(v,t,target,valid),
                 reconstructedGeometryError=error(candidate,t,target,valid),

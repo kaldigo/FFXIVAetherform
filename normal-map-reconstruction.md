@@ -1,5 +1,7 @@
 # Actual normal-map reconstruction
 
+Follow-up: [body-specific flap-root cleanup and cloth-relief filtering](body-cleanup-notes.md). That stage rebuilds the six provisional closures described below and selects blurred cloth normals after measuring shape changes. The raw-normal reconstruction remains the comparison control.
+
 28 November 2026. Reconstruct from the actual vanilla normal textures and compare with normal-mapped vanilla before smoothing or fabric-fold removal. The user's clarified resolution policy is **1x AF density for mapping; 2x or 4x AF density for wrapping**. The much denser diagnostic is a control only.
 
 ## Current outputs
