@@ -1,5 +1,7 @@
 # Skin-anchored average curves on the 4x mesh
 
+The subsequent [final-curvature correction](curvature-envelope-notes.md) addresses the seat dip-to-bump failure described below and partly improves the chest. This original candidate is retained for comparison.
+
 This is a separate core-body estimation experiment. The raw reconstructed 4x geometry is the outer evidence. Local averaged curvature supplies a smooth shape trend, while exposed skin outside a narrow collar anchors its position. There is **no fixed thickness allowance and no garment lift**. Existing mapping/wrap references remain unchanged.
 
 ## Method

@@ -61,7 +61,9 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
-The [skin-anchored inner-envelope trial](inner-envelope-notes.md) fits average local curves on the raw 4x geometry, then continues a smooth inward correction from the surrounding skin. It adds no fixed thickness or garment lift. The original underwear stays at its original coordinates. Residual seams and the reconstructed cleavage root remain review issues.
+The [final-curvature correction trial](curvature-envelope-notes.md) adds direct control of the final surface's local quadratic residual to the inward envelope fit. It targets the dip-to-bump changes in the circled seat patches and compares the chest against the earlier candidate. The reconstructed cleavage root remains a review issue.
+
+The [skin-anchored inner-envelope trial](inner-envelope-notes.md) fits average local curves on the raw 4x geometry, then continues a smooth inward correction from the surrounding skin. It adds no fixed thickness or garment lift. The original underwear stays at its original coordinates. Its relative dip-to-bump changes showed that smoothness of the correction alone was insufficient.
 
 The [standalone underwear extraction trial](underclothes-extraction-notes.md) used the raw 4x relief and 6 mm separated body to produce separate bra and briefs shells. Its required lifts exposed a failure of the earlier body separation as an inner-body estimate. The shell construction passed static crossing checks after those lifts; that did not validate the inferred body shape.
 

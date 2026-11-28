@@ -1,5 +1,5 @@
 """Measure local dip/bump changes in the reviewed upper outer seat patches."""
-import json
+import argparse,json
 from pathlib import Path
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
@@ -9,8 +9,8 @@ from fit_inner_envelope import quadratic_intercept
 from reference_surface import unit
 
 
-def run():
-    folder=Path('outputs/body-inner-envelope-4x-collar12')
+def run(folder='outputs/body-inner-envelope-4x-collar12'):
+    folder=Path(folder)
     raw=np.load('outputs/body-cleanup-4x-raw/body-fit-reference.npz');new=np.load(folder/'body-fit-reference.npz')
     v,p,t=raw['position'],new['position'],raw['triangles'];n=new['envelopeDirection']
     mass,_=surface_operator(v,t);_,metric=graph(v,t)
@@ -32,9 +32,10 @@ def run():
         definition='Positive dip means the vertex is below its locally fitted quadratic. Raw/new use the same vertex neighbourhood, raw geodesic weights and fitting frame; each fits its own quadratic. Radius 25 mm, weight Gaussian 12 mm. These are local trend diagnostics, not measured hidden anatomy.',
         vertices=len(records),dipToBumpThresholdMm=.05,dipToBumpVertices=len(flips),
         flips=flips,allSamples=records,
-        conclusion='Nonpositive displacement relative to raw does not prevent fabric-scale curvature reversal relative to the surrounding surface. The smooth correction objective does not directly constrain final surface curvature.')
+        conclusion=str(len(flips))+' raw-dip to candidate-bump changes exceed the defined threshold. This local diagnostic measures final surface shape, rather than assuming inward displacement preserves relative curvature.')
     (folder/'seat-relief-diagnosis.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:value for k,value in report.items() if k not in ('allSamples','flips')},indent=2))
 
 
-if __name__=='__main__':run()
+if __name__=='__main__':
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('folder',nargs='?',default='outputs/body-inner-envelope-4x-collar12');run(p.parse_args().folder)

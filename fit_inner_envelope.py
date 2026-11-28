@@ -123,7 +123,21 @@ def run(args):
     free=cloth|(distance<args.skin_collar)
     fixed=~free
     relevant=np.any(free[t],axis=1)
-    d,solve=constrained_offset(target,mass,lap,free,args.continuation,(v,t[relevant],direction))
+    if args.curvature_weight>0:
+        from fit_curvature_envelope import solve_curvature
+        initial=None;history=None
+        if args.initial:
+            previous=np.load(Path(args.initial)/'body-fit-reference.npz')
+            np.testing.assert_array_equal(previous['rawPosition'],v)
+            initial=previous['envelopeNormalShiftMm']
+            previous_report=Path(args.initial)/'envelope-report.json'
+            if previous_report.exists():
+                previous_solve=json.loads(previous_report.read_text())['solver']
+                if previous_solve.get('curvatureWeight')==args.curvature_weight and previous_solve.get('curvatureRadiusMm')==args.curvature_radius:
+                    history=previous_solve['iterations']
+        d,solve=solve_curvature(target,mass,lap,free,args.continuation,(v,t,direction),raw['group'],
+            args.curvature_weight,args.curvature_radius,args.curvature_iterations,initial,history)
+    else:d,solve=constrained_offset(target,mass,lap,free,args.continuation,(v,t[relevant],direction))
     p=v+d[:,None]*direction
     a=np.cross(v[t[:,1]]-v[t[:,0]],v[t[:,2]]-v[t[:,0]])
     b=np.cross(p[t[:,1]]-p[t[:,0]],p[t[:,2]]-p[t[:,0]])
@@ -133,7 +147,7 @@ def run(args):
     result=dict(raw);result.update(position=p,normal=normals(p,t)[t],rawPosition=v,averagedCurvePosition=v+target[:,None]*direction,
         envelopeDirection=direction,envelopeNormalShiftMm=d,curveFitResidualMm=residual,
         curveFitRadiusMm=np.array(args.radius),continuationLengthMm=np.array(args.continuation),fixedSkin=fixed,
-        skinCollarMm=np.array(args.skin_collar),clothVertex=cloth)
+        skinCollarMm=np.array(args.skin_collar),clothVertex=cloth,curvatureWeight=np.array(args.curvature_weight))
     np.savez_compressed(out/'body-fit-reference.npz',**result)
     write_obj(out/'vanilla-body-fit.obj',p,t,result['normal'],raw['uv'],raw['group'])
     lm=dict(np.load(source/'paired-landmarks-candidate.npz'))
@@ -146,13 +160,16 @@ def run(args):
         clothDisplacementMm=dict(min=float(d[cloth].min()),mean=float(np.average(d[cloth],weights=mass[cloth])),max=float(d[cloth].max())),
         minimumSkinCollarDisplacementMm=float(d[skin&free].min()),
         activeObstacleVertices=int(np.sum(free&(d>-1e-6))),landmarks=len(lm['names']),
-        scope='Local robust quadratic average plus a bounded smooth correction continued from exposed skin outside a narrow seam collar. Same raw topology/UVs/weights/point addresses. Nonpositive vertex-normal displacement is not a proof of global containment. Hidden anatomy is estimated; inspect geometric audits and profiles.')
+        scope=('Final-surface quadratic-residual fairness with inward bounds' if args.curvature_weight>0 else 'Local robust quadratic average plus a bounded smooth correction')+' continued from exposed skin outside a narrow seam collar. Same raw topology/UVs/weights/point addresses. Nonpositive vertex-normal displacement is not a proof of global containment. Hidden anatomy is estimated; inspect geometric audits and profiles.')
     (out/'envelope-report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2),flush=True)
 
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--raw',default='outputs/body-cleanup-4x-raw')
     p.add_argument('--output',default='outputs/body-inner-envelope-4x-collar12');p.add_argument('--radius',type=float,default=30.)
-    p.add_argument('--continuation',type=float,default=12.);p.add_argument('--skin-collar',type=float,default=12.);a=p.parse_args()
+    p.add_argument('--continuation',type=float,default=12.);p.add_argument('--skin-collar',type=float,default=12.)
+    p.add_argument('--curvature-weight',type=float,default=0.);p.add_argument('--curvature-radius',type=float,default=25.)
+    p.add_argument('--curvature-iterations',type=int,default=8);p.add_argument('--initial');a=p.parse_args()
     if a.radius<=0 or a.continuation<=0 or a.skin_collar<=0 or a.skin_collar>=a.radius:p.error('Positive lengths required, with skin collar smaller than curve radius')
+    if a.curvature_weight<0 or a.curvature_radius<=0 or a.curvature_iterations<1:p.error('Invalid curvature controls')
     run(a)
