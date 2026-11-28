@@ -61,6 +61,8 @@ The deliberately denser intermediate surface separates shape reconstruction from
 
 ## Vanilla body reference prototype
 
+The [fabric fold cleanup trial](vanilla-cleanup-trial.md) provides a separate smoothed comparison candidate. It reduces fine ripples with bounded changes and protects the cleavage; larger underwear construction creases remain. The original upscale and accepted landmark files are retained.
+
 `reference_surface.py` builds the vanilla body reference from the stock top and leg skin, using the close-fitting stock smallclothes for the covered regions. It removes the tail flap, reviewed bra and hip flaps, and detached decorative details. Six exposed flap roots are closed with 28 explicitly generated cap triangles. The neck, wrists and ankles remain open for their separate body parts.
 
 New vertices sample cubic PN patches built from the authored **mesh vertex normals**, so the dense surface gains real curvature between the original vertices. Original retained vertices remain fixed. Shared patch edges use common control points. Generated root caps stay linear, with shared boundary curves fixed, because their missing interior normals are not authored shape evidence. This implementation follows [Curved PN Triangles by Vlachos and colleagues](https://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Vlachos01.pdf).
